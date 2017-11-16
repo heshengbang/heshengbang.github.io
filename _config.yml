@@ -1,37 +1,70 @@
-title: Hello, world! I'm David Freeman
-description: > # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
-permalink: ':title/'
-baseurl: "/flexible-jekyll" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
-site-twitter: #if your site has a twitter account, enter it here
+# Basic
+title: 潘柏信
+subtitle: 个人站
+description: 欢迎来到我的个人站~
+# 头像里面的标题
+avatarTitle: leopardpan
+# 头像里面的描述
+avatarDesc: iOS / 机器学习
+url: "http://baixin.io"
 
-# Author Settings
-author: David Freeman # add your name
-author-img: david-freeman.jpg # add your photo
-about-author: I am a web developer focusing on front-end development. Always hungry to keep learning. # add description
-twitter: # add your Twitter handle
-facebook: # add your Facebook handle
-github: artemsheludko # add your Github handle
-linkedin: # add your Linkedin handle
-email: # add your Email address
+# Comment
+comment:
+    disqus: leopard
+    # uyan: 2143225  # 有言id,登录有言官网申请
 
-# Disqus
-discus-identifier: mr-brown # add your discus identifier
+# Social
+social:
+    weibo: 5366874726 
+    github: leopardpan
+    # twitter: 
+    mail: leopardpan@icloud.com
 
-# Tracker
-analytics: # Google Analytics
+# 百度统计 
+# 使用博客模板请去掉或者更换 id 
+baidu:
+    id: 8ba1c6be0953b6f9c2ba38e57f615421  
 
-# Build Settings
-markdown: kramdown
-plugins_dir:
-  - jekyll-sitemap
-  - jekyll-paginate
-  - jemoji
+# Google Analytics
+# 使用博客模板请去掉或者更换 id
+ga:
+    id: UA-84134159-3   
+    host: auto  
 
-paginate: 8
-paginate_path: "/page/:num"
 
-exclude: ["node_modules", "gulpfile.js", "package.json", "yarn.lock"]
+# 《----------------- 上面的信息修改成你自己的 ---------------------------》
+#
+#
+#  _post/ 下的文章更换成你自己的文章
+#  帮忙star一下，感谢~😆 地址： https://github.com/leopardpan/leopardpan.github.io
+#
+#
+# 《--------------- 下面的信息可以自行选择是否修改 ------------------------》
+
+
+permalink: /:year/:month/:title/
+# Format
+highlighter: rouge
+
+textColor: #FF0000
+
+# supported colors: blue, green, purple, red, orange or slate. If you need clear, leave it empty.
+cover_color: clear
+
+# The blog button should not be removed.
+blog_button:
+    title: 博客主页
+
+# Navigation buttons in the front page.s
+nav:
+    - {title: 所有文章, description: archive, url: '/archive'}   
+    - {title: 标签, description: tags, url: '/tags'}      
+    - {title: 关于我, description: about, url: '/about'}      
+    
+
+# Pagination
+gems: [jekyll-paginate,jekyll-sitemap]
+paginate: 20
+paginate_path: "page/:num/"
+
+
