@@ -1,20 +1,43 @@
+# Welcome to Jekyll!
+#
+# This config file is meant for settings that affect your whole blog, values
+# which you are expected to set up once and rarely edit after that. If you find
+# yourself editing this file very often, consider using Jekyll's data files
+# feature for the data you need to update frequently.
+#
+# For technical reasons, this file is *NOT* reloaded automatically when you use
+# 'bundle exec jekyll serve'. If you change this file, please restart the server process.
+
 # Site settings
-title: 何昇邦的博客                     #你博客的标题
-SEOTitle: 何昇邦的博客 | Heshengbang's Blog        #显示在浏览器上搜索的时候显示的标题
-header-img: img/post-bg-rwd.jpg     #显示在首页的背景图片
-email: [email protected]    
-description: "This is Heshengbang's Blog welcome!"              #网站介绍
-keyword: "JAVA, OPENSOURCE, 何昇邦, heshengbang, BLOG, JVM" #关键词
-url: "https://github.com/tongheshang/tongheshang.github.io"          # 这个就是填写你的博客地址
-baseurl: ""      # 这个我们不用填写
+# These are used to personalize your new site. If you look in the HTML files,
+# you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
+# You can create any custom variable you would like, and they will be accessible
+# in the templates via {{ site.myvariable }}.
+title: Your awesome title
+email: your-email@example.com
+description: >- # this means to ignore newlines until "baseurl:"
+  Write an awesome description for your new site here. You can edit this
+  line in _config.yml. It will appear in your document head meta (for
+  Google search results) and in your feed.xml site description.
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "" # the base hostname & protocol for your site, e.g. http://example.com
+twitter_username: jekyllrb
+github_username:  jekyll
 
-# Sidebar settings
-sidebar: true                           # 是否开启侧边栏.
-sidebar-about-description: "说点装逼的话。。。"
-sidebar-avatar:/img/avatar-by.JPG      # 你的个人头像 这里你可以改成我在img文件夹中的两张备用照片 img/avatar-m 或 avatar-g
+# Build settings
+markdown: kramdown
+theme: minima
+plugins:
+  - jekyll-feed
 
-# SNS settings
-RSS: false
-weibo_username:     yunshixin
-github_username:    tongheshang
-twitter_username:   heshengbang
+# Exclude from processing.
+# The following items will not be processed, by default. Create a custom list
+# to override the default setting.
+# exclude:
+#   - Gemfile
+#   - Gemfile.lock
+#   - node_modules
+#   - vendor/bundle/
+#   - vendor/cache/
+#   - vendor/gems/
+#   - vendor/ruby/
