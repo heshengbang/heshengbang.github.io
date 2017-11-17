@@ -6,4 +6,15 @@
 
 # 使用jekyll搭建个人博客教程
 
-[Jekyll搭建个人博客](http://baixin.io/2016/10/jekyll_tutorials1/)  :  使用Jekyll搭建个人博客的教程，以及如果把博客模板修改成你自己的博客，里面也有大量的评论，及 Jekyll 搭建博客出现过的问题
+[Jekyll搭建个人博客](http://www.heshengbang.men/2017/11/jekyll搭建个人博客/)  :  使用Jekyll搭建个人博客的教程
+
+# jekyll主题
+
+[JEkyll主题网站](http://jekyllthemes.org) 使用方式说明
+- 选择喜欢的主题
+- clone 到本地
+- 找到你的博客主目录，先copy备份，然后删除其中除了.git、_posts文件夹和CNAME文件之外的其他所有文件及文件夹
+- 将你clone的主题的主目录下除.git文件夹外的其他文件及文件夹copy到你的博客主目录
+- 在主目录下启动jekyll server
+- 进入localhost:4000查看
+- 如果失败也别担心，因为本地可能缺少某些插件，push变更到github，发布成功后去查看
