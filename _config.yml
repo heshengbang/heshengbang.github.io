@@ -14,7 +14,7 @@ social:
     weibo: yunshixin
     github: tongheshang
     twitter: heshengbang
-    mail: trulyheshengbang@gmail.com
+    mail: yunshixin8521894@sohu.com
 
 # 百度统计 
 # 使用博客模板请去掉或者更换 id 
@@ -62,5 +62,3 @@ nav:
 gems: [jekyll-paginate,jekyll-sitemap]
 paginate: 20
 paginate_path: "page/:num/"
-
-
