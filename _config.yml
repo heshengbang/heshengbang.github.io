@@ -1,18 +1,18 @@
 # Basic
 title: 何昇邦
-subtitle: 个人博客
+subtitle: 个人博客/Personal Blog
 description: 三省吾身。
 # 头像里面的标题
 avatarTitle: 何昇邦
 # 头像里面的描述
 avatarDesc: JAVA / OPENSOURCE
-url: "http://heshengbang.men"
+url: "http://www.heshengbang.men"
 
 
 # Social
 social:
     weibo: yunshixin
-    github: tongheshang
+    github: heshengbang
     twitter: heshengbang
     mail: yunshixin8521894@sohu.com
 
@@ -32,7 +32,7 @@ social:
 #
 #
 #  _post/ 下的文章更换成你自己的文章
-#  帮忙star一下，感谢~😆 地址： https://github.com/tongheshang/tongheshang.github.io
+#  帮忙star一下，感谢~😆 地址： https://github.com/heshengbang/heshengbang.github.io
 #
 #
 # 《--------------- 下面的信息可以自行选择是否修改 ------------------------》
