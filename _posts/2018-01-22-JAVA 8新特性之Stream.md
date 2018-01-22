@@ -1,6 +1,6 @@
 ---
 layout: post
-title: JAVA 8的新特性
+title: JAVA 8新特性之Stream
 date: 2018-01-22
 tags: 博客
 ---
