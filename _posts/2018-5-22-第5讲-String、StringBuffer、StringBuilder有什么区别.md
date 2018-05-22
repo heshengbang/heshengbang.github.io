@@ -12,7 +12,7 @@ tags: Java核心技术36讲笔记
 - StringBuffer 是为解决上面提到拼接产生太多中间对象的问题而提供的一个类，它是 Java 1.5 中新增的，我们可以用 append 或者 add 方法，把字符串添加到已有序列的末尾或者指定位置。StringBuffer 本质是一个线程安全的可修改字符序列，它保证了线程安全，也随之带来了额外的性能开销，所以除非有线程安全的需要，不然还是推荐使用它的后继者，也就是 StringBuilder。
 - StringBuilder 在能力上和 StringBuffer 没有本质区别，但是它去掉了线程安全的部分，有效减小了开销，是绝大部分情况下进行字符串拼接的首选。
 
-![String/StringBuffer/StringBuilder关系图](https://github.com/heshengbang/heshengbang.github.io/tree/master/images/javabasic/String、StringBuffer、StringBuilder光系统.jpg)
+![String/StringBuffer/StringBuilder关系图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/String、StringBuffer、StringBuilder关系图.jpg)
 
 ### 关键点
 - String是Immutable的，不当的字符串操作会产生大量临时字符串和线程安全方面的问题
