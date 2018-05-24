@@ -158,7 +158,7 @@ public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
 
 - WebAsyncManager是管理异步请求的核心类，一般作为SPI，通常不直接由应用程序类使用
 - SPI 全称为 (Service Provider Interface) ,是JDK内置的一种服务提供发现机制
-- `SecurityContextCallableProcessingInterceptor`允许所有和spring mvc的Callable接口支持的整合。当`preProcess(NativeWebRequest, Callable)`被调用时，`CallableProcessingInterceptor`会被建立在`SecurityContextHolder`添加的`SecurityContext`中。在`postProcess(NativeWebRequest, Callable, Object)`方法中，它也通过调用`SecurityContextHolder#clearContext()`来清理`SecurityContextHolder`。
+- `SecurityContextCallableProcessingInterceptor`允许所有和spring mvc的Callable接口整合的支持。当`preProcess(NativeWebRequest, Callable)`被调用时，`CallableProcessingInterceptor`会被建立在`SecurityContextHolder`添加的`SecurityContext`中。在`postProcess(NativeWebRequest, Callable, Object)`方法中，它也通过调用`SecurityContextHolder#clearContext()`来清理`SecurityContextHolder`。
 
 核心代码如下：
 ```java
@@ -179,3 +179,145 @@ protected void doFilterInternal(HttpServletRequest request,
 ```
 虽然看了源码和注释，但是还是没搞懂这个类是用来干嘛的。
 
+### HeaderWriterFilter
+该过滤器用于实现将头部添加到当前response中。可以被用作添加一些浏览器保护的过滤器，例如，X-Frame-Options, X-XSS-Protection and X-Content-Type-Options。简单来说，就是可以重写这个过滤器，在过滤器中完成一些安全操作，例如X-Frame-Options, X-XSS-Protection and X-Content-Type-Options之类的。
+```java
+	@Override
+	protected void doFilterInternal(HttpServletRequest request,
+			HttpServletResponse response, FilterChain filterChain)
+					throws ServletException, IOException {
+		HeaderWriterResponse headerWriterResponse = new HeaderWriterResponse(request,
+				response, this.headerWriters);
+		try {
+			filterChain.doFilter(request, headerWriterResponse);
+		}
+		finally {
+			headerWriterResponse.writeHeaders();
+		}
+	}
+
+	static class HeaderWriterResponse extends OnCommittedResponseWrapper {
+		private final HttpServletRequest request;
+		private final List<HeaderWriter> headerWriters;
+
+		HeaderWriterResponse(HttpServletRequest request, HttpServletResponse response,
+				List<HeaderWriter> headerWriters) {
+			super(response);
+			this.request = request;
+			this.headerWriters = headerWriters;
+		}
+		@Override
+		protected void onResponseCommitted() {
+			writeHeaders();
+			this.disableOnResponseCommitted();
+		}
+		protected void writeHeaders() {
+			if (isDisableOnResponseCommitted()) {
+				return;
+			}
+			for (HeaderWriter headerWriter : this.headerWriters) {
+				headerWriter.writeHeaders(this.request, getHttpResponse());
+			}
+		}
+		private HttpServletResponse getHttpResponse() {
+			return (HttpServletResponse) getResponse();
+		}
+	}
+```
+
+### LogoutFilter
+- 注销登录。调用一系列LogoutHandler，这些处理器被要求按指定的队列排序。通常，我们调用的是logout handler是TokenBasedRememberMeServices和SecurityContextLogoutHandler。
+- 注销登陆后，将会发生一次重定向，重定向的地址由LogoutSuccessHandler或logoutSuccessUrl的配置决定，具体使用的url由使用哪个构造函数决定。
+- logouthandler的注册在spring-security.xml中进行配置，配置好以后将id放入到http配置中的logout部分，例如：
+`<logout invalidate-session="true"  logout-url="/j_spring_security_logout" success-handler-ref="logoutSuccessHandler"/>`
+
+```java
+public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+			throws IOException, ServletException {
+		HttpServletRequest request = (HttpServletRequest) req;
+		HttpServletResponse response = (HttpServletResponse) res;
+
+		if (requiresLogout(request, response)) {
+			Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+			if (logger.isDebugEnabled()) {
+				logger.debug("Logging out user '" + auth
+						+ "' and transferring to logout destination");
+			}
+			for (LogoutHandler handler : handlers) {
+				handler.logout(request, response, auth);
+			}
+			logoutSuccessHandler.onLogoutSuccess(request, response, auth);
+			return;
+		}
+		chain.doFilter(request, response);
+	}
+protected boolean requiresLogout(HttpServletRequest request,
+			HttpServletResponse response) {
+		return logoutRequestMatcher.matches(request);
+	}
+```
+
+### UsernamePasswordAuthenticationFilter
+处理一次登录表单提交。在spring security 3.0之前调用AuthenticationProcessingFilter去完成这个工作。登录表单必须为这个过滤器准备两个参数：一个用户名和一个密码。默认使用的参数名分别为username和password，在源代码中定义如下：
+```java
+public static final String SPRING_SECURITY_FORM_USERNAME_KEY = "username";
+public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
+```
+参数名可以被修改，通过调用set方法:
+```java
+public void setUsernameParameter(String usernameParameter) {
+		this.usernameParameter = usernameParameter;
+	}
+public void setPasswordParameter(String passwordParameter) {
+		this.passwordParameter = passwordParameter;
+	}
+```
+默认情况下，此过滤器响应URL是/login。
+
+通常情况下，使用者需要自己重写这个方法，并在attemptAuthentication()中去实现自己的逻辑。attemptAuthentication()方法会返回一个登录的结果实体对象`UsernamePasswordAuthenticationToken`，该类的继承结构和属性如下：
+![UsernamePasswordAuthenticationToken](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationToken.jpg)
+这个类在Spring security的登录中有非常重要的作用，需要十分注意。
+
+UsernamePasswordAuthenticationFilter的类继承关系图如下：
+![UsernamePasswordAuthenticationFilter](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationFilter.jpg)
+
+UsernamePasswordAuthenticationFilter类的核心源码如下：
+```Java
+public Authentication attemptAuthentication(HttpServletRequest request,
+			HttpServletResponse response) throws AuthenticationException {
+		if (postOnly && !request.getMethod().equals("POST")) {
+			throw new AuthenticationServiceException(
+					"Authentication method not supported: " + request.getMethod());
+		}
+		String username = obtainUsername(request);
+		String password = obtainPassword(request);
+		if (username == null) {
+			username = "";
+		}
+		if (password == null) {
+			password = "";
+		}
+		username = username.trim();
+		UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(
+				username, password);
+		setDetails(request, authRequest);
+		return this.getAuthenticationManager().authenticate(authRequest);
+	}
+```
+在UsernamePasswordAuthenticationFilter#attemptAuthentication做的工作并不多，但此方法中有一句：
+`this.getAuthenticationManager().authenticate(authRequest)`,这其中的getAuthenticationManager()会获取到一个用户认证管理类，而这个类的来源在spring-security中进行配置：
+```xml
+<beans:bean id="loginFilter"
+                class="org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter">
+	<beans:property name="filterProcessesUrl" value="/login"></beans:property>
+	<beans:property name="authenticationSuccessHandler" ref="authenticationSuccessHandler"></beans:property>
+	<beans:property name="authenticationFailureHandler" ref="authenticationFailureHandler"></beans:property>
+	<beans:property name="authenticationManager" ref="authenticationManager"></beans:property>
+	<beans:property name="sessionAuthenticationStrategy" ref="sas"/>
+</beans:bean>
+<authentication-manager alias="authenticationManager">
+	<authentication-provider ref="authenticationProvider"/>
+</authentication-manager>
+```
+这一块几乎就是spring security登录认证授权的核心部分，它的流程的大致情况如下图所示：
+![spring security登录认证](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/springsecurity登录验证流程.jpg)

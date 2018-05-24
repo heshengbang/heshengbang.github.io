@@ -123,25 +123,56 @@ Java 为对象内建了各种多态、线程安全等方面的支持，但这不
     - float是4字节，32位
     - double是8字节，64位
     - char是2字节，16位
-
 </b>
 
-
-- 数据的内存大小占用（以32位Hotspot JVM为例）
+- 数据的内存大小占用（以64位Hotspot JVM为例）
 	- Java对象的内存布局：对象头（Header），实例数据（Instance Data）和对齐填充（Padding）
 		- 对象头在32位系统上占用8bytes，64位系统上占用16bytes
 		- reference类型在32位系统上每个占用4bytes, 在64位系统上每个占用8bytes
+
+	- 指针压缩
+		- 对象占用的内存大小受到VM参数UseCompressedOops的影响
+		- 对对象头的影响
+			- 开启（-XX:+UseCompressedOops）对象头大小为12bytes（64位机器）
+```java
+class A {
+	int a;
+}
+```
+A对象占用内存情况：
+①关闭指针压缩： 16+4=20不是8的倍数，所以+padding/4=24
+②开启指针压缩： 12+4=16已经是8的倍数了，不需要再padding。
+		- 对reference类型的影响
+			- 64位机器上reference类型占用8个字节，开启指针压缩后占用4个字节
+```java
+static class B2 {
+        int b2a;
+        Integer b2b;
+}
+```
+B2对象占用内存情况：
+①关闭指针压缩： 16+4+8=28不是8的倍数，所以+padding/4=32
+②开启指针压缩： 12+4+4=20不是8的倍数，所以+padding/4=24
+		- 对数组对象的影响
+			- 64位机器上，数组对象的对象头占用24个字节，启用压缩之后占用16个字节。之所以比普通对象占用内存多是因为需要额外的空间存储数组的长度。
+new Integer[0]占用的内存大小，长度为0，即是对象头的大小：
+①未开启压缩：24bytes
+②开启压缩后：16bytes
+		- 对复杂对象的影响就是整合了以上几种情况的复合而已。
+
 	- 原生类型(primitive type)的内存占用如下
+
 		Primitive Type | Memory Required(bytes)
-        - | :-:
-        boolean | 1
-        byte | 1
-        short | 2
-        char | 2
-        int | 4
-        float | 4
-        long | 8
-        double | 8
+        -|:-:
+        boolean | 1字节
+        byte | 1字节
+        short | 2字节
+        char | 2字节
+        int | 4字节
+        float | 4字节
+        long | 8字节
+        double | 8字节
+
 	- 复杂类型，举例说明如下：
 ```java
 static class B {
@@ -161,34 +192,5 @@ static class C {
 ```
 ![对象内存大小占用计算示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/对象内存大小占用计算示意图.png)
 	- 主要是三部分构成：C对象本身的大小+数组对象的大小+B对象的大小。
-        - (8(头) + 4(属性) + 4(引用)) + (12(头) + 3*4(引用)) + (8(头) + 4*2(属性))*3 = 88
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        - 未开启压缩：(16(头) + 4(属性) + 8(引用) + 4(padding)) + (24(头) + 8x3(引用)) +(16(头)+4x2(属性))*3 = 152bytes
+        - 开启压缩：(12 + 4 + 4 +4(padding)) + (16 + 4*3 +4(数组对象padding)) + (12+8+4（B对象padding）)*3= 128bytes
