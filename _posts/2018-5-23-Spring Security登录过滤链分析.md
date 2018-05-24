@@ -276,7 +276,7 @@ public void setPasswordParameter(String passwordParameter) {
 
 通常情况下，使用者需要自己重写这个方法，并在attemptAuthentication()中去实现自己的逻辑。attemptAuthentication()方法会返回一个登录的结果实体对象`UsernamePasswordAuthenticationToken`，该类的继承结构和属性如下：
 ![UsernamePasswordAuthenticationToken](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationToken.jpg)
-这个类在Spring security的登录中有非常重要的作用，需要十分注意。
+这个类在Spring security的登录中有非常重要的作用。其中的authenticated就是保存用户是否登录认证成功的标识，需要十分注意。
 
 UsernamePasswordAuthenticationFilter的类继承关系图如下：
 ![UsernamePasswordAuthenticationFilter](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationFilter.jpg)
