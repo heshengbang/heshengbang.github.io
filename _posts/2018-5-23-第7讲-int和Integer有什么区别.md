@@ -92,3 +92,103 @@ Java 的对象都是引用类型，如果是一个原始数据类型数组，它
 Java 为对象内建了各种多态、线程安全等方面的支持，但这不是所有场合的需求，尤其是数据处理重要性日益提高，更加高密度的值类型是非常现实的需求。针对这些方面的增强，目前正在 OpenJDK 领域紧锣密鼓地进行开发，有兴趣的话你可以关注相关工程：http://openjdk.java.net/projects/valhalla/
 
 ### 对象的内存结构是什么样的吗？对象的大小是如何计算的？
+- 数据存放地址
+	- 原始数据类型存放在Java虚拟机栈中的局部变量表中；
+	- 原始数据类型数组也是一种对象，因此存放在堆中；
+	- 对象存放在堆中
+
+- 数据大小计算
+	- 整型
+        - byte,1字节
+        - short,2字节
+        - int, 4字节
+        - long,8字节
+	- 浮点类型
+        - float,4字节
+        - double,8字节
+    - char类型
+    	- char,unicode,2字节
+    - boolean类型
+    	- boolean,大小没有明确指定。
+    - 以上见数据类型的定义，见[官方文档](ttp://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html)
+> boolean: The boolean data type has only two possible values: true and false. Use this data type for simple flags that track true/false conditions. This data type represents one bit of information, but its "size" isn't something that's precisely defined.
+
+<b>
+- 注意：
+    - 此处的1字节是指1byte，1byte=8bit,bit译为中文是位
+    - 简单来说：byte类型是1字节，8位
+    - short是2字节，16位
+    - int是4字节，32位
+    - long是8字节，64位
+    - float是4字节，32位
+    - double是8字节，64位
+    - char是2字节，16位
+
+</b>
+
+
+- 数据的内存大小占用（以32位Hotspot JVM为例）
+	- Java对象的内存布局：对象头（Header），实例数据（Instance Data）和对齐填充（Padding）
+		- 对象头在32位系统上占用8bytes，64位系统上占用16bytes
+		- reference类型在32位系统上每个占用4bytes, 在64位系统上每个占用8bytes
+	- 原生类型(primitive type)的内存占用如下
+		Primitive Type | Memory Required(bytes)
+        - | :-:
+        boolean | 1
+        byte | 1
+        short | 2
+        char | 2
+        int | 4
+        float | 4
+        long | 8
+        double | 8
+	- 复杂类型，举例说明如下：
+```java
+static class B {
+        int a;
+        int b;
+    }
+static class C {
+        int ba;
+        B[] as = new B[3];
+
+        C() {
+            for (int i = 0; i < as.length; i++) {
+                as[i] = new B();
+            }
+        }
+    }
+```
+![对象内存大小占用计算示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/对象内存大小占用计算示意图.png)
+	- 主要是三部分构成：C对象本身的大小+数组对象的大小+B对象的大小。
+        - (8(头) + 4(属性) + 4(引用)) + (12(头) + 3*4(引用)) + (8(头) + 4*2(属性))*3 = 88
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
