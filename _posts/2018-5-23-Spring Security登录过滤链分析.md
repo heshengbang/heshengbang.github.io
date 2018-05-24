@@ -321,3 +321,28 @@ public Authentication attemptAuthentication(HttpServletRequest request,
 ```
 这一块几乎就是spring security登录认证授权的核心部分，它的流程的大致情况如下图所示：
 ![spring security登录认证](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/springsecurity登录验证流程.jpg)
+
+简述一下过程：
+- 由UsernamePasswordAuthentication执行attemptAuthention()
+- 在attemptAuthention()中会调用ProviderManager或其衍生的子类的authenticate()方法
+- 在ProviderManage的authenticate()方法会调用DaoAuthenticationProvider中继承自AbstractUserDetailsAuthenticationProvider中实现的authenticate()方法，该方法中调用了DaoAuthenticationProvider中实现的retrieveUser()方法
+- retrieveUser()方法中调用UserDetailService中的loadUserByUsername()方法，该方法中返回一个UserDetail
+- UserDetail这个对象返回到AbstractUserDetailsAuthenticationProvider的authenticate()方法中，在该方法中的核心代码如下：
+```java
+try {
+	preAuthenticationChecks.check(user);
+    //在该方法中完成用户名和密码的校验
+	additionalAuthenticationChecks(user,(UsernamePasswordAuthenticationToken) authentication);
+	} catch (AuthenticationException exception) {
+		if (cacheWasUsed) {
+			cacheWasUsed = false;
+			user = retrieveUser(username,(UsernamePasswordAuthenticationToken) authentication);
+			preAuthenticationChecks.check(user);
+			additionalAuthenticationChecks(user,(UsernamePasswordAuthenticationToken) authentication);
+		} else {
+			throw exception;
+		}
+	}
+	postAuthenticationChecks.check(user);
+```
+该方法中完成了用户的用户名和密码校验，执行完毕后就获得一个UsernamePasswordAuthenticationToken实体对象，这个对象中包含了用户已经被认证的flag。加入用户名密码错误，则会在其中直接判处错误。
