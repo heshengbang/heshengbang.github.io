@@ -22,16 +22,14 @@ tags: Java基础
             connect.close();
     }
     ```
-    ①假设有这样一个数据库链接管理类，这段代码在单线程中使用是没有任何问题的，但是如果在多线程中使用就会出现线程安全问题。
+    - 假设有这样一个数据库链接管理类，这段代码在单线程中使用是没有任何问题的，但是如果在多线程中使用就会出现线程安全问题。
     	- 这里面的2个方法都没有进行同步，很可能在openConnection方法中会多次创建connect
     	- 由于connect是共享变量，那么必然在调用connect的地方需要使用到同步来保障线程安全，因为很可能一个线程在使用connect进行数据库操作，而另外一个线程调用closeConnection关闭链接
-
     综上，必须将这段代码的两个方法进行同步处理，并且在调用connect的地方需要进行同步处理。
-    ②加上同步处理以后，这样将会大大影响程序执行效率，因为一个线程在使用connect进行数据库操作的时候，其他线程只有等待。
-    ③事实上，假如每个线程中都有一个connect变量，各个线程之间对connect变量的访问实际上是没有依赖关系的，即一个线程不需要关心其他线程是否对这个connect进行了修改的。
+    - 加上同步处理以后，这样将会大大影响程序执行效率，因为一个线程在使用connect进行数据库操作的时候，其他线程只有等待。
+    - 事实上，假如每个线程中都有一个connect变量，各个线程之间对connect变量的访问实际上是没有依赖关系的，即一个线程不需要关心其他线程是否对这个connect进行了修改的。
     	- 事实上，之所以没选择懒汉模式，是因为创建创建链接非常消耗性能，给服务器带来非常巨大的压力。因此选择饿汉模式，并且一次创建以后一直使用。
-
-    ④这种情况下使用ThreadLocal是再适合不过的了，因为ThreadLocal在每个线程中对该变量会创建一个副本，即每个线程内部都会有一个该变量，且在线程内部任何地方都可以使用，线程之间互不影响，这样一来就不存在线程安全问题，也不会严重影响程序执行性能。
+    - 这种情况下使用ThreadLocal是再适合不过的了，因为ThreadLocal在每个线程中对该变量会创建一个副本，即每个线程内部都会有一个该变量，且在线程内部任何地方都可以使用，线程之间互不影响，这样一来就不存在线程安全问题，也不会严重影响程序执行性能。
 
 	- jdk中关于这个类的注释说明
 >This class provides thread-local variables.  These variables differ from their normal counterparts in that each thread that accesses one (via its {@code get} or {@code set} method) has its own, independently initialized copy of the variable.  {@code ThreadLocal} instances are typically private static fields in classes that wish to associate state with a thread (e.g.,a user ID or Transaction ID).
@@ -99,6 +97,7 @@ tags: Java基础
      }
     ```
 ### ThreadLocalMap的源码
+- ThreadLocalMap是ThreadLocal的一个核心内部类，是存储数据的主体。源码如下：
 ```java
 static class ThreadLocalMap {
 		// Entry:代表 ThreadLocalMap 中的项，作用和HashMap的一致
