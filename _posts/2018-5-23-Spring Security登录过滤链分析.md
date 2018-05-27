@@ -275,11 +275,11 @@ public void setPasswordParameter(String passwordParameter) {
 默认情况下，此过滤器响应URL是/login。
 
 通常情况下，使用者需要自己重写这个方法，并在attemptAuthentication()中去实现自己的逻辑。attemptAuthentication()方法会返回一个登录的结果实体对象`UsernamePasswordAuthenticationToken`，该类的继承结构和属性如下：
-![UsernamePasswordAuthenticationToken](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationToken.jpg)
+![UsernamePasswordAuthenticationToken](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/spring/UsernamePasswordAuthenticationToken.jpg)
 这个类在Spring security的登录中有非常重要的作用。其中的authenticated就是保存用户是否登录认证成功的标识，需要十分注意。
 
 UsernamePasswordAuthenticationFilter的类继承关系图如下：
-![UsernamePasswordAuthenticationFilter](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/UsernamePasswordAuthenticationFilter.jpg)
+![UsernamePasswordAuthenticationFilter](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/spring/UsernamePasswordAuthenticationFilter.jpg)
 
 UsernamePasswordAuthenticationFilter类的核心源码如下：
 ```Java
@@ -320,7 +320,7 @@ public Authentication attemptAuthentication(HttpServletRequest request,
 </authentication-manager>
 ```
 这一块几乎就是spring security登录认证授权的核心部分，它的流程的大致情况如下图所示：
-![spring security登录认证](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/springsecurity/springsecurity登录验证流程.jpg)
+![spring security登录认证](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/spring/springsecurity登录验证流程.jpg)
 
 简述一下过程：
 - 由UsernamePasswordAuthentication执行attemptAuthention()
