@@ -6,7 +6,7 @@ title: Spring中Bean的生命周期
 
 date: 2018-5-27
 
-tags: Java基础
+tags: Spring
 
 ---
 
@@ -156,12 +156,12 @@ public interface BeanFactory {
 	- BeanFactory的源码上面贴过了，这里就不贴了，贴一下FactoryBean的源码：
 	```java
     public interface FactoryBean<T> {
-    	//返回由FactoryBean创建的Bean的实例
-        T getObject() throws Exception;
-        //确定由FactoryBean创建的Bean的作用域是singleton还是prototype
-        Class<?> getObjectType();
-        //返回FactoryBean创建的Bean的类型
-        boolean isSingleton();
+		//返回由FactoryBean创建的Bean的实例
+		T getObject() throws Exception;
+		//确定由FactoryBean创建的Bean的作用域是singleton还是prototype
+		Class<?> getObjectType();
+		//返回FactoryBean创建的Bean的类型
+		boolean isSingleton();
     }
     ```
     - 类实现了FactoryBean接口后，配置到Spring的容器中，通过ApplicationContext或BeanFactory根据factoryBean的名字获取到的是它生产的类的实例。
