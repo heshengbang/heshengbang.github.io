@@ -111,7 +111,7 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 ```
 
 - 使用DispatcherServlet需要在web.xml中配置
-```xml
+```
 <servlet>
 	<servlet-name>appServlet</servlet-name>
 	<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
@@ -150,3 +150,6 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 	- M-Model 模型（完成业务逻辑：有javaBean构成，service+dao+entity）
 	- V-View 视图（做界面的展示  jsp，html……）
 	- C-Controller 控制器（接收请求—>调用模型—>根据结果派发页面）
+
+
+[参考](https://www.cnblogs.com/xiaoxi/p/6164383.html)
