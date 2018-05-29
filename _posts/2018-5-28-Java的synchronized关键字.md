@@ -116,14 +116,18 @@ public class MyClass {
 	- 一般而言，synchronized使用的锁对象是存储在Java对象头里的
 	- jvm中采用2个字来存储对象头(如果对象是数组则会分配3个字，多出来的1个字记录的是数组长度)
 	- 对象头由一个mark word，class word，一个32位长度的字（如果该对象是一个数组），一个32位的填充（如果对齐规则需要的话）以及零个或多个实例组成的字段，数组元素或元数据字段，参见[Object header layout](https://stackoverflow.com/questions/50502663/how-to-calculate-java-arrays-memory-size)
+
        虚拟机位数 | 头对象结构 | 说明
              - | :-: | -:
        32/64bit | Mark Word | 存储对象的hashCode、锁信息或分代年龄或GC标志等信息
        32/64bit | Class Metadata Address | 类型指针指向对象的类元数据，JVM通过这个指针确定该对象是哪个类的实例
+
     - 其中Mark Word在默认情况下存储着对象的HashCode、分代年龄、锁标记位等以下是32位JVM的Mark Word默认存储结构
+
     锁状态 | 25bit | 4bit | 1bit是否是偏向锁 | 2bit锁标志位
     	- | :-: | -:
     无锁状态 | 对象HashCode | 对象分代年龄 | 0 | 01
+
     - 由于对象头的信息是与对象自身定义的数据没有关系的额外存储成本，因此考虑到JVM的空间效率，Mark Word 被设计成为一个非固定的数据结构，以便存储更多有效的数据，它会根据对象本身的状态复用自己的存储空间。如下图所示：
     ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/object_header_structure.png)
     - 轻量级锁和偏向锁是Java 6 对 synchronized 锁进行优化后新增加的
