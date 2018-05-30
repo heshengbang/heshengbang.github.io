@@ -161,7 +161,7 @@ tags: 《深入理解Java虚拟机》看书笔记
 	- G1相比CMS可以降低停顿时间，G1和CMS都关注停顿时间的降低，但是G1除了停顿时间降低之外还能建立可预测的停顿时间模型，即：能够让使用者明确指定在一个长度为M毫秒的时间片段内，消耗在垃圾收集收集上的时间不超过N毫秒
 
 #### 步骤（不含维护remember set的操作）
-[G1收集器运行示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/G1收集器运行示意图.jpg)
+![G1收集器运行示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/G1收集器运行示意图.jpg)
 
 - 初始标记（Initial Marking），同CMS的初始标记
 	- 标记GC Roots能够关联到的对象并修改TAMS(Next Top at Mark Start)的值，让下一阶段用户程序并发运行时，能在正确可用的Region中创建对象，这一阶段需要停顿工作线程，但耗时很短
