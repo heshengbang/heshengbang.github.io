@@ -573,7 +573,31 @@ static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V>  {
 
 - 从源码中可以看出，TreeNode除了实现Node的方法之外，就是围绕红黑树的性质在构建自己的方法和属性。
 
+### TreeNode的成员变量
+- TreeNode的成员变量分为三大类，分别是继承自Node、继承自LinkedHashMap.Entry、自己独有的。如下所示：
+![TreeNode的成员变量](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/HashMap源码分析/TreeNode的fields.jpg)
+
+- 继承自HashMap.Node的成员变量
+	- hash，保存当前节点的哈希值
+	- key，保存当前节点的key
+	- value，保存当前节点的value
+	- next，保存当前节点的下一个节点
+
+- 继承自LinkedHashMap的成员变量
+	- before，保存双向链表中当前节点的前一个节点
+	- after，保存双向链表中当前节点的后一个节点
+
+- TreeNode自有的成员变量
+	- parent，保存红黑树的父节点，在作为红黑树的时候需要赋值
+	- left，保存红黑树的左子节点
+	- right，保存红黑树的右子节点
+	- prev，当前节点的前一个节点，在节点被删除时需要解除连接
+
 ### TreeNode的方法详解
+- TreeNode中频繁使用到了两个HashMap的工具方法`comparableClassFor`和`compareComparables`。如果打算完整透彻的理解TreeNode，跳过这两个方法几乎是不可能的。因此，在分析TreeNode的方法前，先将这两个方法的逻辑捋一遍。
+	- `static Class<?> comparableClassFor(Object x)`
+	- `static int compareComparables(Class<?> kc, Object k, Object x)`
+
 - `final TreeNode<K,V> root()` 返回包含当前节点的树形结构的根节点。基本思路是从当前节点的父节点一直往上拿，直到父节点为空为止。
 
 - `static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root)` 保证给定根节点一定在链表结构的最前端，也就是hash桶中。思路如下：
@@ -736,8 +760,86 @@ final void treeify(Node<K,V>[] tab) {
 			- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
 			- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
 
-- `final Node<K,V> untreeify(HashMap<K,V> map)`
-- `final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v)`
+- `final Node<K,V> untreeify(HashMap<K,V> map)`，返回一个非TreeNode的链表。这个方法的作用是将一组红黑树转换为一个链表。
+```java
+final Node<K,V> untreeify(HashMap<K,V> map) {
+            Node<K,V> hd = null, tl = null;
+            for (Node<K,V> q = this; q != null; q = q.next) {
+                Node<K,V> p = map.replacementNode(q, null);
+                if (tl == null)
+                    hd = p;
+                else
+                    tl.next = p;
+                tl = p;
+            }
+            return hd;
+        }
+```
+  步骤：
+		1. 从当前节点q开始遍历
+		2. 将q从TreeMap转成Node类型的p
+			- 如果是遍历的首次，则将头节点赋值给hd
+			- 如果不是首次遍历，则将p赋值给t1的下一个值
+		3. 将p赋值给t1
+		4. q=q.next，进入步骤2
+		5. 遍历结束，返回最开始记录的头结点hd
+
+- `final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v)`，红黑树版的putVal()方法
+```java
+final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v) {
+            Class<?> kc = null;
+            boolean searched = false;
+            TreeNode<K,V> root = (parent != null) ? root() : this;
+            for (TreeNode<K,V> p = root;;) {
+                int dir, ph; K pk;
+                if ((ph = p.hash) > h)
+                    dir = -1;
+                else if (ph < h)
+                    dir = 1;
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    return p;
+                else if ((kc == null &&
+                          (kc = comparableClassFor(k)) == null) ||
+                         (dir = compareComparables(kc, k, pk)) == 0) {
+                    if (!searched) {
+                        TreeNode<K,V> q, ch;
+                        searched = true;
+                        if (((ch = p.left) != null &&
+                             (q = ch.find(h, k, kc)) != null) ||
+                            ((ch = p.right) != null &&
+                             (q = ch.find(h, k, kc)) != null))
+                            return q;
+                    }
+                    dir = tieBreakOrder(k, pk);
+                }
+
+                TreeNode<K,V> xp = p;
+                if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    Node<K,V> xpn = xp.next;
+                    TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                    if (dir <= 0)
+                        xp.left = x;
+                    else
+                        xp.right = x;
+                    xp.next = x;
+                    x.parent = x.prev = xp;
+                    if (xpn != null)
+                        ((TreeNode<K,V>)xpn).prev = x;
+                    moveRootToFront(tab, balanceInsertion(root, x));
+                    return null;
+                }
+            }
+        }
+```
+  步骤：
+	1. 根据 当前节点的父节点是否为null，给根节点root赋值
+		- 如果为null，则返回当前节点
+		- 如果不为空，则返回根节点
+	2. （从根节点开始遍历整个红黑树）将根节点赋值给节点p
+	3. 如果p中的hash值小于将要插入的节点的hash值，则将p赋值为p的左子节点
+	4. 如果p中的hash值大于将要插入的节点的hash值，则将p赋值为p的右子节点
+	5. 如果p的hash值等于将要插入的节点的hash值，则根据要插入的节点的key值的类型来判断
+
 - `final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable)`
 - `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`
 - `static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p)`
