@@ -1,0 +1,747 @@
+---
+
+layout: post
+
+title: Map框架分析（九）HashMap的内部类TreeNode
+
+date: 2018-6-3
+
+tags: Java基础
+
+---
+
+本文基于JDK 1.8
+
+### 相关知识点
+- [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
+	- 内部接口
+	- 方法
+- [AbstractMap](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+	- 内部类
+	- 方法
+- HashMap
+	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
+		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
+	- [HashMap中的方法和属性](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法和属性/)
+		- [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
+		- [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
+		- [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
+
+
+#### 简述
+- TreeNode的继承关系有点曲线救国的味道。因为HashMap.TreeNode继承自LinkedHashMap.Entry，而LinkedHashMap.Entry继承自HashMap.Node，所以在[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)的简述中我直接将TreeNode归类于Node的子类。TreeeNode之所以选择这样绕的继承关系，是为了方便HashMap.TreeNode以后可以用作普通的链表节点或树形结构的节点扩展
+- TreeNode是一个将红黑树的概念融合到类设计中的类，虽然它只是作为HashMap的内部类存在，但是它的内容依然充实。
+
+### 源码及注释
+```java
+static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V>  {
+		// 红黑树的父节点
+        TreeNode<K,V> parent;
+        // 红黑树的左子节点
+        TreeNode<K,V> left;
+        // 红黑树的右子节点
+        TreeNode<K,V> right;
+        // 前一个节点。在节点被删除后需要将前一个节点和当前节点的链接关系取消掉
+        TreeNode<K,V> prev;
+        // 当前节点是否为红，红黑树的节点不为红就是黑
+        boolean red;
+        // 构造方法
+        TreeNode(int hash, K key, V val, Node<K,V> next) {
+            super(hash, key, val, next);
+        }
+        // 返回当前节点所在树的根节点
+        final TreeNode<K,V> root() {
+            for (TreeNode<K,V> r = this, p;;) {
+                if ((p = r.parent) == null)
+                    return r;
+                r = p;
+            }
+        }
+        // 确保给定根节点在hash桶数组中，即链表最前端
+        static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
+            int n;
+            if (root != null && tab != null && (n = tab.length) > 0) {
+                int index = (n - 1) & root.hash;
+                TreeNode<K,V> first = (TreeNode<K,V>)tab[index];
+                if (root != first) {
+                    Node<K,V> rn;
+                    tab[index] = root;
+                    TreeNode<K,V> rp = root.prev;
+                    if ((rn = root.next) != null)
+                        ((TreeNode<K,V>)rn).prev = rp;
+                    if (rp != null)
+                        rp.next = rn;
+                    if (first != null)
+                        first.prev = root;
+                    root.next = first;
+                    root.prev = null;
+                }
+                assert checkInvariants(root);
+            }
+        }
+
+        // 根据hash值和key值，从根节点开始查找一个节点
+        final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
+            TreeNode<K,V> p = this;
+            do {
+                int ph, dir; K pk;
+                TreeNode<K,V> pl = p.left, pr = p.right, q;
+                if ((ph = p.hash) > h)
+                    p = pl;
+                else if (ph < h)
+                    p = pr;
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    return p;
+                else if (pl == null)
+                    p = pr;
+                else if (pr == null)
+                    p = pl;
+                else if ((kc != null ||
+                          (kc = comparableClassFor(k)) != null) &&
+                         (dir = compareComparables(kc, k, pk)) != 0)
+                    p = (dir < 0) ? pl : pr;
+                else if ((q = pr.find(h, k, kc)) != null)
+                    return q;
+                else
+                    p = pl;
+            } while (p != null);
+            return null;
+        }
+        // 根据hash和key值，从根节点开始查找TreeNode
+        final TreeNode<K,V> getTreeNode(int h, Object k) {
+            return ((parent != null) ? root() : this).find(h, k, null);
+        }
+        // 提供了一种基于hash值的排序，比较两个参数的hash值大小
+        static int tieBreakOrder(Object a, Object b) {
+            int d;
+            if (a == null || b == null ||
+                (d = a.getClass().getName().
+                 compareTo(b.getClass().getName())) == 0)
+                d = (System.identityHashCode(a) <= System.identityHashCode(b) ?
+                     -1 : 1);
+            return d;
+        }
+        // 将和此节点关联的节点树化，从链表结构转向红黑树
+        final void treeify(Node<K,V>[] tab) {
+            TreeNode<K,V> root = null;
+            for (TreeNode<K,V> x = this, next; x != null; x = next) {
+                next = (TreeNode<K,V>)x.next;
+                x.left = x.right = null;
+                if (root == null) {
+                    x.parent = null;
+                    x.red = false;
+                    root = x;
+                }
+                else {
+                    K k = x.key;
+                    int h = x.hash;
+                    Class<?> kc = null;
+                    for (TreeNode<K,V> p = root;;) {
+                        int dir, ph;
+                        K pk = p.key;
+                        if ((ph = p.hash) > h)
+                            dir = -1;
+                        else if (ph < h)
+                            dir = 1;
+                        else if ((kc == null &&
+                                  (kc = comparableClassFor(k)) == null) ||
+                                 (dir = compareComparables(kc, k, pk)) == 0)
+                            dir = tieBreakOrder(k, pk);
+                        TreeNode<K,V> xp = p;
+                        if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                            x.parent = xp;
+                            if (dir <= 0)
+                                xp.left = x;
+                            else
+                                xp.right = x;
+                            root = balanceInsertion(root, x);
+                            break;
+                        }
+                    }
+                }
+            }
+            moveRootToFront(tab, root);
+        }
+        // 返回一组非树形节点来替换和当前节点相连的节点
+        final Node<K,V> untreeify(HashMap<K,V> map) {
+            Node<K,V> hd = null, tl = null;
+            for (Node<K,V> q = this; q != null; q = q.next) {
+                Node<K,V> p = map.replacementNode(q, null);
+                if (tl == null)
+                    hd = p;
+                else
+                    tl.next = p;
+                tl = p;
+            }
+            return hd;
+        }
+        // 树版的putVal()方法
+        final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v) {
+            Class<?> kc = null;
+            boolean searched = false;
+            TreeNode<K,V> root = (parent != null) ? root() : this;
+            for (TreeNode<K,V> p = root;;) {
+                int dir, ph; K pk;
+                if ((ph = p.hash) > h)
+                    dir = -1;
+                else if (ph < h)
+                    dir = 1;
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    return p;
+                else if ((kc == null &&
+                          (kc = comparableClassFor(k)) == null) ||
+                         (dir = compareComparables(kc, k, pk)) == 0) {
+                    if (!searched) {
+                        TreeNode<K,V> q, ch;
+                        searched = true;
+                        if (((ch = p.left) != null &&
+                             (q = ch.find(h, k, kc)) != null) ||
+                            ((ch = p.right) != null &&
+                             (q = ch.find(h, k, kc)) != null))
+                            return q;
+                    }
+                    dir = tieBreakOrder(k, pk);
+                }
+
+                TreeNode<K,V> xp = p;
+                if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    Node<K,V> xpn = xp.next;
+                    TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                    if (dir <= 0)
+                        xp.left = x;
+                    else
+                        xp.right = x;
+                    xp.next = x;
+                    x.parent = x.prev = xp;
+                    if (xpn != null)
+                        ((TreeNode<K,V>)xpn).prev = x;
+                    moveRootToFront(tab, balanceInsertion(root, x));
+                    return null;
+                }
+            }
+        }
+        // 移除TreeNode
+        final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
+            int n;
+            if (tab == null || (n = tab.length) == 0)
+                return;
+            int index = (n - 1) & hash;
+            TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+            TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            if (pred == null)
+                tab[index] = first = succ;
+            else
+                pred.next = succ;
+            if (succ != null)
+                succ.prev = pred;
+            if (first == null)
+                return;
+            if (root.parent != null)
+                root = root.root();
+            if (root == null || root.right == null ||
+                (rl = root.left) == null || rl.left == null) {
+                tab[index] = first.untreeify(map);  // too small
+                return;
+            }
+            TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+            if (pl != null && pr != null) {
+                TreeNode<K,V> s = pr, sl;
+                while ((sl = s.left) != null) // find successor
+                    s = sl;
+                boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+                TreeNode<K,V> sr = s.right;
+                TreeNode<K,V> pp = p.parent;
+                if (s == pr) { // p was s's direct parent
+                    p.parent = s;
+                    s.right = p;
+                }
+                else {
+                    TreeNode<K,V> sp = s.parent;
+                    if ((p.parent = sp) != null) {
+                        if (s == sp.left)
+                            sp.left = p;
+                        else
+                            sp.right = p;
+                    }
+                    if ((s.right = pr) != null)
+                        pr.parent = s;
+                }
+                p.left = null;
+                if ((p.right = sr) != null)
+                    sr.parent = p;
+                if ((s.left = pl) != null)
+                    pl.parent = s;
+                if ((s.parent = pp) == null)
+                    root = s;
+                else if (p == pp.left)
+                    pp.left = s;
+                else
+                    pp.right = s;
+                if (sr != null)
+                    replacement = sr;
+                else
+                    replacement = p;
+            }
+            else if (pl != null)
+                replacement = pl;
+            else if (pr != null)
+                replacement = pr;
+            else
+                replacement = p;
+            if (replacement != p) {
+                TreeNode<K,V> pp = replacement.parent = p.parent;
+                if (pp == null)
+                    root = replacement;
+                else if (p == pp.left)
+                    pp.left = replacement;
+                else
+                    pp.right = replacement;
+                p.left = p.right = p.parent = null;
+            }
+
+            TreeNode<K,V> r = p.red ? root : balanceDeletion(root, replacement);
+
+            if (replacement == p) {  // detach
+                TreeNode<K,V> pp = p.parent;
+                p.parent = null;
+                if (pp != null) {
+                    if (p == pp.left)
+                        pp.left = null;
+                    else if (p == pp.right)
+                        pp.right = null;
+                }
+            }
+            if (movable)
+                moveRootToFront(tab, r);
+        }
+        // 如果现在的树形结构太小，就将节点拆分为较高和较低的两部分
+        // 该方法只能在resize()方法中被调用，详细见移位和索引部分
+        final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
+            TreeNode<K,V> b = this;
+            // Relink into lo and hi lists, preserving order
+            TreeNode<K,V> loHead = null, loTail = null;
+            TreeNode<K,V> hiHead = null, hiTail = null;
+            int lc = 0, hc = 0;
+            for (TreeNode<K,V> e = b, next; e != null; e = next) {
+                next = (TreeNode<K,V>)e.next;
+                e.next = null;
+                if ((e.hash & bit) == 0) {
+                    if ((e.prev = loTail) == null)
+                        loHead = e;
+                    else
+                        loTail.next = e;
+                    loTail = e;
+                    ++lc;
+                }
+                else {
+                    if ((e.prev = hiTail) == null)
+                        hiHead = e;
+                    else
+                        hiTail.next = e;
+                    hiTail = e;
+                    ++hc;
+                }
+            }
+            if (loHead != null) {
+                if (lc <= UNTREEIFY_THRESHOLD)
+                    tab[index] = loHead.untreeify(map);
+                else {
+                    tab[index] = loHead;
+                    if (hiHead != null) // (else is already treeified)
+                        loHead.treeify(tab);
+                }
+            }
+            if (hiHead != null) {
+                if (hc <= UNTREEIFY_THRESHOLD)
+                    tab[index + bit] = hiHead.untreeify(map);
+                else {
+                    tab[index + bit] = hiHead;
+                    if (loHead != null)
+                        hiHead.treeify(tab);
+                }
+            }
+        }
+
+        /* ------------------------------------------------------------ */
+        // 红黑树方法，全部由CLR改编
+        // 红黑树的左旋操作
+        static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+                                              TreeNode<K,V> p) {
+            TreeNode<K,V> r, pp, rl;
+            if (p != null && (r = p.right) != null) {
+                if ((rl = p.right = r.left) != null)
+                    rl.parent = p;
+                if ((pp = r.parent = p.parent) == null)
+                    (root = r).red = false;
+                else if (pp.left == p)
+                    pp.left = r;
+                else
+                    pp.right = r;
+                r.left = p;
+                p.parent = r;
+            }
+            return root;
+        }
+        // 红黑树的右旋操作
+        static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+                                               TreeNode<K,V> p) {
+            TreeNode<K,V> l, pp, lr;
+            if (p != null && (l = p.left) != null) {
+                if ((lr = p.left = l.right) != null)
+                    lr.parent = p;
+                if ((pp = l.parent = p.parent) == null)
+                    (root = l).red = false;
+                else if (pp.right == p)
+                    pp.right = l;
+                else
+                    pp.left = l;
+                l.right = p;
+                p.parent = l;
+            }
+            return root;
+        }
+        // 红黑树的平衡插入
+        static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x) {
+            x.red = true;
+            for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
+                if ((xp = x.parent) == null) {
+                    x.red = false;
+                    return x;
+                }
+                else if (!xp.red || (xpp = xp.parent) == null)
+                    return root;
+                if (xp == (xppl = xpp.left)) {
+                    if ((xppr = xpp.right) != null && xppr.red) {
+                        xppr.red = false;
+                        xp.red = false;
+                        xpp.red = true;
+                        x = xpp;
+                    }
+                    else {
+                        if (x == xp.right) {
+                            root = rotateLeft(root, x = xp);
+                            xpp = (xp = x.parent) == null ? null : xp.parent;
+                        }
+                        if (xp != null) {
+                            xp.red = false;
+                            if (xpp != null) {
+                                xpp.red = true;
+                                root = rotateRight(root, xpp);
+                            }
+                        }
+                    }
+                }
+                else {
+                    if (xppl != null && xppl.red) {
+                        xppl.red = false;
+                        xp.red = false;
+                        xpp.red = true;
+                        x = xpp;
+                    }
+                    else {
+                        if (x == xp.left) {
+                            root = rotateRight(root, x = xp);
+                            xpp = (xp = x.parent) == null ? null : xp.parent;
+                        }
+                        if (xp != null) {
+                            xp.red = false;
+                            if (xpp != null) {
+                                xpp.red = true;
+                                root = rotateLeft(root, xpp);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 自平衡删除
+        static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+                                                   TreeNode<K,V> x) {
+            for (TreeNode<K,V> xp, xpl, xpr;;)  {
+                if (x == null || x == root)
+                    return root;
+                else if ((xp = x.parent) == null) {
+                    x.red = false;
+                    return x;
+                }
+                else if (x.red) {
+                    x.red = false;
+                    return root;
+                }
+                else if ((xpl = xp.left) == x) {
+                    if ((xpr = xp.right) != null && xpr.red) {
+                        xpr.red = false;
+                        xp.red = true;
+                        root = rotateLeft(root, xp);
+                        xpr = (xp = x.parent) == null ? null : xp.right;
+                    }
+                    if (xpr == null)
+                        x = xp;
+                    else {
+                        TreeNode<K,V> sl = xpr.left, sr = xpr.right;
+                        if ((sr == null || !sr.red) &&
+                            (sl == null || !sl.red)) {
+                            xpr.red = true;
+                            x = xp;
+                        }
+                        else {
+                            if (sr == null || !sr.red) {
+                                if (sl != null)
+                                    sl.red = false;
+                                xpr.red = true;
+                                root = rotateRight(root, xpr);
+                                xpr = (xp = x.parent) == null ?
+                                    null : xp.right;
+                            }
+                            if (xpr != null) {
+                                xpr.red = (xp == null) ? false : xp.red;
+                                if ((sr = xpr.right) != null)
+                                    sr.red = false;
+                            }
+                            if (xp != null) {
+                                xp.red = false;
+                                root = rotateLeft(root, xp);
+                            }
+                            x = root;
+                        }
+                    }
+                }
+                else { // symmetric
+                    if (xpl != null && xpl.red) {
+                        xpl.red = false;
+                        xp.red = true;
+                        root = rotateRight(root, xp);
+                        xpl = (xp = x.parent) == null ? null : xp.left;
+                    }
+                    if (xpl == null)
+                        x = xp;
+                    else {
+                        TreeNode<K,V> sl = xpl.left, sr = xpl.right;
+                        if ((sl == null || !sl.red) &&
+                            (sr == null || !sr.red)) {
+                            xpl.red = true;
+                            x = xp;
+                        }
+                        else {
+                            if (sl == null || !sl.red) {
+                                if (sr != null)
+                                    sr.red = false;
+                                xpl.red = true;
+                                root = rotateLeft(root, xpl);
+                                xpl = (xp = x.parent) == null ?
+                                    null : xp.left;
+                            }
+                            if (xpl != null) {
+                                xpl.red = (xp == null) ? false : xp.red;
+                                if ((sl = xpl.left) != null)
+                                    sl.red = false;
+                            }
+                            if (xp != null) {
+                                xp.red = false;
+                                root = rotateRight(root, xp);
+                            }
+                            x = root;
+                        }
+                    }
+                }
+            }
+        }
+        // 递归检查红黑树的不变性
+        static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
+            TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
+                tb = t.prev, tn = (TreeNode<K,V>)t.next;
+            if (tb != null && tb.next != t)
+                return false;
+            if (tn != null && tn.prev != t)
+                return false;
+            if (tp != null && t != tp.left && t != tp.right)
+                return false;
+            if (tl != null && (tl.parent != t || tl.hash > t.hash))
+                return false;
+            if (tr != null && (tr.parent != t || tr.hash < t.hash))
+                return false;
+            if (t.red && tl != null && tl.red && tr != null && tr.red)
+                return false;
+            if (tl != null && !checkInvariants(tl))
+                return false;
+            if (tr != null && !checkInvariants(tr))
+                return false;
+            return true;
+        }
+    }
+```
+
+- 从源码中可以看出，TreeNode除了实现Node的方法之外，就是围绕红黑树的性质在构建自己的方法和属性。
+
+### TreeNode的方法详解
+- `final TreeNode<K,V> root()` 返回包含当前节点的树形结构的根节点。基本思路是从当前节点的父节点一直往上拿，直到父节点为空为止。
+
+- `static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root)` 保证给定根节点一定在链表结构的最前端，也就是hash桶中。思路如下：
+		1. 判断给定节点和哈希桶数组均不为空，同时哈系桶数组的大小大于0，否则直接结束
+		2. 通过哈系桶数组的大小和给定节点的hash值求模，获取给定节点在哈系桶数组中的位置，然后获取到该位置当前存放的节点first
+		3. 判断给定节点和first是否相同，如果相同则直接结束
+		4. 将给定节点放到步骤2中确定的哈希桶数组位置中
+		5. 获取给定节点的上一个节点rp
+		6. 获取给定节点的下一个节点rn
+		7. 如果rn不为空，则将rn的上一个节点置为rp
+		8. 如果rp不为空，则将rp的下一个节点置为rn
+		9. 如果firs不为空，则将first的前一个节点置为给定节点
+		10. 将给定节点的前一个节点置为null，后一个节点置为first
+
+- `final TreeNode<K,V> find(int h, Object k, Class<?> kc)` 使用给定的哈希值和key及类型从当前点开始找符合指定哈希值和key以及key的类型的节点，源码如下：
+```java
+final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
+            TreeNode<K,V> p = this;
+            do {
+                int ph, dir; K pk;
+                TreeNode<K,V> pl = p.left, pr = p.right, q;
+                if ((ph = p.hash) > h)
+                    p = pl;
+                else if (ph < h)
+                    p = pr;
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    return p;
+                else if (pl == null)
+                    p = pr;
+                else if (pr == null)
+                    p = pl;
+                else if ((kc != null ||
+                          (kc = comparableClassFor(k)) != null) &&
+                         (dir = compareComparables(kc, k, pk)) != 0)
+                    p = (dir < 0) ? pl : pr;
+                else if ((q = pr.find(h, k, kc)) != null)
+                    return q;
+                else
+                    p = pl;
+            } while (p != null);
+            return null;
+        }
+```
+  步骤如下：
+	1. 从当前节点开始遍历，将当前节点赋值给节点p
+	2. 获取p节点的左子节点pl和右子节点pr
+		- 如果p节点的哈希值ph大于给定哈希值h，则p节点被置为pl
+		- 否则，如果p节点的哈希值ph小于给定哈希值h，则p节点被置为pr
+		- 否则，如果p节点的(key==给定k） || （给定k值不为null && k和p节点的key值equals)，则返回p节点
+		- 否则，如果pl为空，则p节点被置为pr
+		- 否则，如果pr为空，则p节点被指为pl
+		- 否则，判断 `((kc != null || (kc = comparableClassFor(k)) != null) && (dir = compareComparables(kc, k, pk)) != 0)`
+			- `kc = comparableClassFor(k)` 如果k实现了Comparable接口，就返回它的类型
+			- `dir = compareComparables(kc, k, pk)` 如果pk不为空或者x的类型不是kc，就返回0，否则返回`(Comparable)k).compareTo(x)`的结果
+			- 简述，在给定类型和p的key类型都不为空并且给定的key值还实现了Comparable接口的情况下判断两个当前p的key和给定key是否相等，如果不等p就被置为pl，如果相等p就等于pr
+		- 否则如果，递归调用该方法在p的右子节点去寻找节点，如果找到的节点不为空就返回该节点
+		- 否则，p被置为pl
+	3. 如果p不为空，就继续执行步骤2
+
+- `final TreeNode<K,V> getTreeNode(int h, Object k)` 如果当前节点的父节点不为空，就去寻找根节点，如果节点为空，则从当前节点开始向下寻找符合指定哈希值和key的节点并返回
+
+- `static int tieBreakOrder(Object a, Object b)` 在key没有实现Comparable接口无法进行比较时，用该方法来比较key的大小，源码如下：
+```java
+static int tieBreakOrder(Object a, Object b) {
+            int d;
+            if (a == null || b == null ||
+                (d = a.getClass().getName().
+                 compareTo(b.getClass().getName())) == 0)
+                d = (System.identityHashCode(a) <= System.identityHashCode(b) ?
+                     -1 : 1);
+            return d;
+        }
+```
+  步骤如下：
+    1. 如果a为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
+    2. 如果a不为空，b为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
+    3. 如果a不为空，b也不为空，则判断a的类名和b的类名是否相等（字符串比较）
+    	- 如果相等则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
+    	- 如果不相等，则返回a的类名和b的类名比较的结果
+
+- `final void treeify(Node<K,V>[] tab)` 树化此节点所在的节点列表，源码如下：
+```java
+final void treeify(Node<K,V>[] tab) {
+    	// 定义一个根节点
+        TreeNode<K,V> root = null;
+        // 定义节点x和next
+        // 从当前节点开始遍历
+        for (TreeNode<K,V> x = this, next; x != null; x = next) {
+            // next置为当前节点的下一个节点
+            next = (TreeNode<K,V>)x.next;
+            // 将当前节点的左右子节点置为null
+            x.left = x.right = null;
+            // 判断根节点是否为null，如果为空则说明根节点尚未构建，则构建根节点
+            if (root == null) {
+                // 如果根节点为null，则将当前节点的父节点置为null
+                x.parent = null;
+                // 当前节点颜色置为黑
+                x.red = false;
+                // 将当前节点置为根节点
+                root = x;
+            } else {
+                // 如果根节点不为null，则证明根节点构建完毕，开始以根节点为基础构建左右子节点
+                // 获取当前节点的key
+                K k = x.key;
+                // 获取当前节点的hash
+                int h = x.hash;
+                // 定义类型变量，用来保存key的类型
+                Class<?> kc = null;
+                // 以根节点为基础，遍历寻找x应该插入的位置，主要以x的哈希值与节点的哈希值为比较依据
+                for (TreeNode<K,V> p = root;;) {
+                    int dir, ph;
+                    K pk = p.key;
+                    // 如果根节点的哈希值大于x的哈希值h则dir为-1
+                    if ((ph = p.hash) > h)
+                        dir = -1;
+                    // 如果根节点的哈希值小于x的哈希值h，则dir为1
+                    else if (ph < h)
+                        dir = 1;
+                    // 如果哈希值相等且key的类型实现了Comparable接口，则将dir赋值为通过比较key的类型名字比较的结果
+                    // 如果key为空或者key均没实现Comparable接口，则将dir赋值为key的哈希值比较或者类名比较的结果
+                    else if ((kc == null && (kc = comparableClassFor(k)) == null) || (dir = compareComparables(kc, k, pk)) == 0)
+                    dir = tieBreakOrder(k, pk);
+                    TreeNode<K,V> xp = p;
+                    // 根据上面的比较结果判断该继续从左子节点还是右子节点继续比较
+                    // 如果获得的左子树或右子树为空, 则将节点插入当左节点或者右节点
+                    if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                        x.parent = xp;
+                        if (dir <= 0)
+                            xp.left = x;
+                        else
+                            xp.right = x;
+                        root = balanceInsertion(root, x);
+                        break;
+                    }
+                }
+            }
+        }
+        moveRootToFront(tab, root);
+    }
+```
+  步骤：
+	1. （从当前节点开始遍历节点数组）将当前节点赋值为p
+	2. 如果红黑树根节点为空，则将p设为红黑树的根节点，p等于自己的下一个节点，进入步骤1
+	3. （如果红黑树的根节点不为空，则从根节点遍历红黑树）比较树节点和p的哈希值大小
+	4. 如果p的哈希值小于树节点的哈希值则得到树的左子节点
+		- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
+		- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
+	5. 如果p的哈希值大于树节点的哈希值则得到树的右子节点
+		- 如果右子节点为空，则将p执行平衡插入到红黑树中，作为树节点的右子节点，将p=p.next进入步骤2
+		- 如果右子节点不为空，则进入左子节点继续比较，循环到步骤3
+	6. 如果哈希值相等，则判断p的key和树的key的类型
+		- 如果p的key没实现Comparable接口，或者，p的key类型等于树节点的key的类型，则判断p的key的哈希值与树节点的key的哈希值的大小
+			- 如果p的key的哈希值大，则得到树的左子节点
+				- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
+				- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
+			- 如果树节点的key的哈希值大，则得到树的右子节点
+				- 如果右子节点为空，则将p执行平衡插入到红黑树中，作为树节点的右子节点，将p=p.next进入步骤2
+				- 如果右子节点不为空，则进入左子节点继续比较，循环到步骤3
+		- 否则得到树的左子节点
+			- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
+			- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
+
+- `final Node<K,V> untreeify(HashMap<K,V> map)`
+- `final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v)`
+- `final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable)`
+- `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`
+- `static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p)`
+- `static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root, TreeNode<K,V> p)`
+- `static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)`
+- `static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root, TreeNode<K,V> x)`
+- `static <K,V> boolean checkInvariants(TreeNode<K,V> t)`

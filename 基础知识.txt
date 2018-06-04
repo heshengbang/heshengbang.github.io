@@ -22,6 +22,7 @@
 - B+树
 - 高性能mysql，数据库数据是怎么存储的，最左匹配原则 #
 - 事务，事务隔离性，索引（B+树，为什么是B+树）
+- Hibernate 原理
 - mybatis 原理
 - redis setnx
 - Bean的生命周期 #
