@@ -10,7 +10,7 @@ tags: Spring
 
 ---
 
-### Spring Bean的生命周期
+### Spring Bean的生命周期（全）
 - 实例化BeanFactoryPostProcessor实现类
 - 执行BeanFactoryPostProcessor的postProcessBeanFactory方法
 	- 在Application Context标准初始化以后，修改它内部的BeanFactory
@@ -35,3 +35,17 @@ tags: Spring
 - Bean至此，初始化成功，进入可用状态
 - 调用DisposibleBean的destroy方法
 - 调用配置文件中指定的destroy-method属性的初始化方法
+
+### Spring in Action中简述的生命周期（从Bean被实例化开始的）
+- Spring对Bean进行实例化
+- Spring将值和Bean的引用注入进Bean对应的属性
+- 如果Bean实现了BeanNameAware接口，Spring将Bean的ID传递给setBeanName()接口方法
+- 如果Bean实现了BeanFactoryAware接口，Spring将调用setBeanFactory()接口方法，将BeanFactory容器实例传入
+- 如果Bean实现了ApplicationContextAware接口，Spring将调用setApplicationContext()接口方法，将ApplicationContext的实例的引用传入
+- 如果Bean实现了BeanPostProcessor接口，Spring将调用它们的postProcessBeforeInitialization()接口方法
+- 如果Bean实现了InitializingBean接口，Spring将调用它们的afterPropertiesSet()接口方法（如果Bean使用init-method的初始化方法，该方法也会被调用）
+- 如果Bean实现了BeanPostProcessor接口，Spring将调用它们的postProcessAfterInitialization()接口方法
+- Bean创建完毕，驻留在ApplicationContext中
+- 如果Bean实现了DisposableBean接口，Spring将调用它的destroy接口方法（如果Bean使用destroy-method，该方法也会被调用）
+
+##### 注：目前网络上有不同的Spring Bean声明周期解释，是因为有的是从Bean的实例化开始解释，有的是从BeanFactory开始解释

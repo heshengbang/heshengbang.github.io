@@ -111,15 +111,457 @@ tags: Java基础
 
 - [TreeNode，后文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 
+- HashIterator的源码及注释如下：
+```java
+abstract class HashIterator {
+		// next entry to return
+        Node<K,V> next;
+        // current entry
+        Node<K,V> current;
+        // for fast-fail
+        // fail-fast 机制是java集合(Collection)中的一种错误机制
+        // 当多个线程对同一个集合的内容进行操作时，就可能会产生fail-fast事件
+        int expectedModCount;
+        // current slot
+        int index;
+        // 构造器方法
+        HashIterator() {
+            expectedModCount = modCount;
+            Node<K,V>[] t = table;
+            current = next = null;
+            index = 0;
+            // 哈希桶数组不为空时，一路遍历将next变成桶的最后一个元素
+            if (t != null && size > 0) {
+            	// advance to first entry
+                do {} while (index < t.length && (next = t[index++]) == null);
+            }
+        }
+        // 是否还有下一个元素
+        public final boolean hasNext() {
+            return next != null;
+        }
+        // 下一个节点
+        final Node<K,V> nextNode() {
+            Node<K,V>[] t;
+            Node<K,V> e = next;
+            // 前面进行了同值操作，这里不相等，说明有多个线程访问抛错
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+            // 下一个节点为null，抛错
+            if (e == null)
+                throw new NoSuchElementException();
+            // 下一个节点为空同时，哈希桶不为空
+            if ((next = (current = e).next) == null && (t = table) != null) {
+                do {} while (index < t.length && (next = t[index++]) == null);
+            }
+            return e;
+        }
+        // 移除节点
+        public final void remove() {
+            Node<K,V> p = current;
+            if (p == null)
+                throw new IllegalStateException();
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+            current = null;
+            K key = p.key;
+            removeNode(hash(key), key, null, false, false);
+            expectedModCount = modCount;
+        }
+    }
+```
+	- HashIterator是一个抽象类，主要用来给KeyIterator、ValueIterator、EntryIterator提供一个抽象的方法和成员变量。它的三个实现类中完成了对应的个性化操作。
+
+- KeyIterator的源码及注释如下：
+```java
+final class KeyIterator extends HashIterator
+        implements Iterator<K> {
+        public final K next() { return nextNode().key; }
+    }
+```
+
+- ValueIterator的源码及注释如下：
+```java
+final class ValueIterator extends HashIterator
+        implements Iterator<V> {
+        public final V next() { return nextNode().value; }
+    }
+```
+
+- ValueIterator的源码及注释如下：
+```java
+final class EntryIterator extends HashIterator
+        implements Iterator<Map.Entry<K,V>> {
+        public final Map.Entry<K,V> next() { return nextNode(); }
+    }
+```
+
+- HashMapSpliterator的源码及注释如下：
+```java
+    static class HashMapSpliterator<K,V> {
+        final HashMap<K,V> map;
+        // current node
+        Node<K,V> current;
+        // current index, modified on advance/split
+        int index;
+        // one past last index
+        int fence;
+        // size estimate
+        int est;
+        // for comodification checks
+        int expectedModCount;
+        HashMapSpliterator(HashMap<K,V> m, int origin,
+                           int fence, int est,
+                           int expectedModCount) {
+            this.map = m;
+            this.index = origin;
+            this.fence = fence;
+            this.est = est;
+            this.expectedModCount = expectedModCount;
+        }
+        final int getFence() { // initialize fence and size on first use
+            int hi;
+            if ((hi = fence) < 0) {
+                HashMap<K,V> m = map;
+                est = m.size;
+                expectedModCount = m.modCount;
+                Node<K,V>[] tab = m.table;
+                hi = fence = (tab == null) ? 0 : tab.length;
+            }
+            return hi;
+        }
+
+        public final long estimateSize() {
+            getFence(); // force init
+            return (long) est;
+        }
+    }
+```
+
+- KeySpliterator的源码及注释如下：
+```java
+    static final class KeySpliterator<K,V>
+        extends HashMapSpliterator<K,V>
+        implements Spliterator<K> {
+        KeySpliterator(HashMap<K,V> m, int origin, int fence, int est,
+                       int expectedModCount) {
+            super(m, origin, fence, est, expectedModCount);
+        }
+
+        public KeySpliterator<K,V> trySplit() {
+            int hi = getFence(), lo = index, mid = (lo + hi) >>> 1;
+            return (lo >= mid || current != null) ? null :
+                new KeySpliterator<>(map, lo, index = mid, est >>>= 1,
+                                        expectedModCount);
+        }
+
+        public void forEachRemaining(Consumer<? super K> action) {
+            int i, hi, mc;
+            if (action == null)
+                throw new NullPointerException();
+            HashMap<K,V> m = map;
+            Node<K,V>[] tab = m.table;
+            if ((hi = fence) < 0) {
+                mc = expectedModCount = m.modCount;
+                hi = fence = (tab == null) ? 0 : tab.length;
+            }
+            else
+                mc = expectedModCount;
+            if (tab != null && tab.length >= hi &&
+                (i = index) >= 0 && (i < (index = hi) || current != null)) {
+                Node<K,V> p = current;
+                current = null;
+                do {
+                    if (p == null)
+                        p = tab[i++];
+                    else {
+                        action.accept(p.key);
+                        p = p.next;
+                    }
+                } while (p != null || i < hi);
+                if (m.modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
+
+        public boolean tryAdvance(Consumer<? super K> action) {
+            int hi;
+            if (action == null)
+                throw new NullPointerException();
+            Node<K,V>[] tab = map.table;
+            if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
+                while (current != null || index < hi) {
+                    if (current == null)
+                        current = tab[index++];
+                    else {
+                        K k = current.key;
+                        current = current.next;
+                        action.accept(k);
+                        if (map.modCount != expectedModCount)
+                            throw new ConcurrentModificationException();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public int characteristics() {
+            return (fence < 0 || est == map.size ? Spliterator.SIZED : 0) |
+                Spliterator.DISTINCT;
+        }
+    }
+```
+
+- ValueSpliterator的源码及注释如下：
+```java
+static final class ValueSpliterator<K,V>
+        extends HashMapSpliterator<K,V>
+        implements Spliterator<V> {
+        ValueSpliterator(HashMap<K,V> m, int origin, int fence, int est,
+                         int expectedModCount) {
+            super(m, origin, fence, est, expectedModCount);
+        }
+
+        public ValueSpliterator<K,V> trySplit() {
+            int hi = getFence(), lo = index, mid = (lo + hi) >>> 1;
+            return (lo >= mid || current != null) ? null :
+                new ValueSpliterator<>(map, lo, index = mid, est >>>= 1,
+                                          expectedModCount);
+        }
+
+        public void forEachRemaining(Consumer<? super V> action) {
+            int i, hi, mc;
+            if (action == null)
+                throw new NullPointerException();
+            HashMap<K,V> m = map;
+            Node<K,V>[] tab = m.table;
+            if ((hi = fence) < 0) {
+                mc = expectedModCount = m.modCount;
+                hi = fence = (tab == null) ? 0 : tab.length;
+            }
+            else
+                mc = expectedModCount;
+            if (tab != null && tab.length >= hi &&
+                (i = index) >= 0 && (i < (index = hi) || current != null)) {
+                Node<K,V> p = current;
+                current = null;
+                do {
+                    if (p == null)
+                        p = tab[i++];
+                    else {
+                        action.accept(p.value);
+                        p = p.next;
+                    }
+                } while (p != null || i < hi);
+                if (m.modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
+
+        public boolean tryAdvance(Consumer<? super V> action) {
+            int hi;
+            if (action == null)
+                throw new NullPointerException();
+            Node<K,V>[] tab = map.table;
+            if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
+                while (current != null || index < hi) {
+                    if (current == null)
+                        current = tab[index++];
+                    else {
+                        V v = current.value;
+                        current = current.next;
+                        action.accept(v);
+                        if (map.modCount != expectedModCount)
+                            throw new ConcurrentModificationException();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public int characteristics() {
+            return (fence < 0 || est == map.size ? Spliterator.SIZED : 0);
+        }
+    }
+```
 
 
 
+- EntrySpliterator的源码及注释如下：
+```java
+static final class EntrySpliterator<K,V>
+        extends HashMapSpliterator<K,V>
+        implements Spliterator<Map.Entry<K,V>> {
+        EntrySpliterator(HashMap<K,V> m, int origin, int fence, int est,
+                         int expectedModCount) {
+            super(m, origin, fence, est, expectedModCount);
+        }
 
+        public EntrySpliterator<K,V> trySplit() {
+            int hi = getFence(), lo = index, mid = (lo + hi) >>> 1;
+            return (lo >= mid || current != null) ? null :
+                new EntrySpliterator<>(map, lo, index = mid, est >>>= 1,
+                                          expectedModCount);
+        }
 
+        public void forEachRemaining(Consumer<? super Map.Entry<K,V>> action) {
+            int i, hi, mc;
+            if (action == null)
+                throw new NullPointerException();
+            HashMap<K,V> m = map;
+            Node<K,V>[] tab = m.table;
+            if ((hi = fence) < 0) {
+                mc = expectedModCount = m.modCount;
+                hi = fence = (tab == null) ? 0 : tab.length;
+            }
+            else
+                mc = expectedModCount;
+            if (tab != null && tab.length >= hi &&
+                (i = index) >= 0 && (i < (index = hi) || current != null)) {
+                Node<K,V> p = current;
+                current = null;
+                do {
+                    if (p == null)
+                        p = tab[i++];
+                    else {
+                        action.accept(p);
+                        p = p.next;
+                    }
+                } while (p != null || i < hi);
+                if (m.modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
 
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
+            int hi;
+            if (action == null)
+                throw new NullPointerException();
+            Node<K,V>[] tab = map.table;
+            if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
+                while (current != null || index < hi) {
+                    if (current == null)
+                        current = tab[index++];
+                    else {
+                        Node<K,V> e = current;
+                        current = current.next;
+                        action.accept(e);
+                        if (map.modCount != expectedModCount)
+                            throw new ConcurrentModificationException();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
 
+        public int characteristics() {
+            return (fence < 0 || est == map.size ? Spliterator.SIZED : 0) |
+                Spliterator.DISTINCT;
+        }
+    }
+```
 
+- KeySet源码及注释如下：
+```java
+final class KeySet extends AbstractSet<K> {
+        public final int size()                 { return size; }
+        public final void clear()               { HashMap.this.clear(); }
+        public final Iterator<K> iterator()     { return new KeyIterator(); }
+        public final boolean contains(Object o) { return containsKey(o); }
+        public final boolean remove(Object key) {
+            return removeNode(hash(key), key, null, false, true) != null;
+        }
+        public final Spliterator<K> spliterator() {
+            return new KeySpliterator<>(HashMap.this, 0, -1, 0, 0);
+        }
+        public final void forEach(Consumer<? super K> action) {
+            Node<K,V>[] tab;
+            if (action == null)
+                throw new NullPointerException();
+            if (size > 0 && (tab = table) != null) {
+                int mc = modCount;
+                for (int i = 0; i < tab.length; ++i) {
+                    for (Node<K,V> e = tab[i]; e != null; e = e.next)
+                        action.accept(e.key);
+                }
+                if (modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
+    }
+```
 
+- Values的源码及注释如下：
+```java
+    final class Values extends AbstractCollection<V> {
+        public final int size()                 { return size; }
+        public final void clear()               { HashMap.this.clear(); }
+        public final Iterator<V> iterator()     { return new ValueIterator(); }
+        public final boolean contains(Object o) { return containsValue(o); }
+        public final Spliterator<V> spliterator() {
+            return new ValueSpliterator<>(HashMap.this, 0, -1, 0, 0);
+        }
+        public final void forEach(Consumer<? super V> action) {
+            Node<K,V>[] tab;
+            if (action == null)
+                throw new NullPointerException();
+            if (size > 0 && (tab = table) != null) {
+                int mc = modCount;
+                for (int i = 0; i < tab.length; ++i) {
+                    for (Node<K,V> e = tab[i]; e != null; e = e.next)
+                        action.accept(e.value);
+                }
+                if (modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
+    }
+```
 
-
-
+- EntrySet的源码及注释如下：
+```java
+    final class EntrySet extends AbstractSet<Map.Entry<K,V>> {
+        public final int size()                 { return size; }
+        public final void clear()               { HashMap.this.clear(); }
+        public final Iterator<Map.Entry<K,V>> iterator() {
+            return new EntryIterator();
+        }
+        public final boolean contains(Object o) {
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry<?,?> e = (Map.Entry<?,?>) o;
+            Object key = e.getKey();
+            Node<K,V> candidate = getNode(hash(key), key);
+            return candidate != null && candidate.equals(e);
+        }
+        public final boolean remove(Object o) {
+            if (o instanceof Map.Entry) {
+                Map.Entry<?,?> e = (Map.Entry<?,?>) o;
+                Object key = e.getKey();
+                Object value = e.getValue();
+                return removeNode(hash(key), key, value, true, true) != null;
+            }
+            return false;
+        }
+        public final Spliterator<Map.Entry<K,V>> spliterator() {
+            return new EntrySpliterator<>(HashMap.this, 0, -1, 0, 0);
+        }
+        public final void forEach(Consumer<? super Map.Entry<K,V>> action) {
+            Node<K,V>[] tab;
+            if (action == null)
+                throw new NullPointerException();
+            if (size > 0 && (tab = table) != null) {
+                int mc = modCount;
+                for (int i = 0; i < tab.length; ++i) {
+                    for (Node<K,V> e = tab[i]; e != null; e = e.next)
+                        action.accept(e);
+                }
+                if (modCount != mc)
+                    throw new ConcurrentModificationException();
+            }
+        }
+    }
+```

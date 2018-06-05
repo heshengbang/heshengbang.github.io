@@ -10,7 +10,7 @@ tags: Java基础
 
 ---
 
-本文基于JDK 1.8
+本文基于JDK 1.8。在阅读源码的过程中，发现自己很多地方不能自洽，应该是对源码的理解有很大问题，本文自做记录不作参考，切勿以本文作参考！
 
 ### 相关知识点
 - [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
@@ -157,7 +157,7 @@ final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
 	2. 获取p节点的左子节点pl和右子节点pr
 		- 如果p节点的哈希值ph大于给定哈希值h，则p节点被置为pl
 		- 否则，如果p节点的哈希值ph小于给定哈希值h，则p节点被置为pr
-		- 否则，如果p节点的(key==给定k） || （给定k值不为null && k和p节点的key值equals)，则返回p节点
+		- 否则，如果p节点的(key==给定k）或者（给定k值不为null && k和p节点的key值equals)，则返回p节点
 		- 否则，如果pl为空，则p节点被置为pr
 		- 否则，如果pr为空，则p节点被指为pl
 		- 否则，判断 `((kc != null || (kc = comparableClassFor(k)) != null) && (dir = compareComparables(kc, k, pk)) != 0)`
@@ -356,7 +356,117 @@ final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V 
         }
 ```
 
-- `final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable)`
+- `final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable)`，删除给定节点节点必须在删除之前就存在
+```java
+final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
+            int n;
+            // 如果哈希桶为空或者桶长度为0则直接结束
+            if (tab == null || (n = tab.length) == 0)
+                return;
+			// 用节点的哈希值去模哈希桶的大小，找到该节点在哈希桶中的位置
+            int index = (n - 1) & hash;
+            // 获取哈希桶中的节点，并将其作为根节点
+            TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+            // 获取节点的前一个节点和后一个节点
+            TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            // 如果前一个节点为空
+            if (pred == null)
+            	// 就将哈希桶中的节点换位当前节点的下一个节点
+                tab[index] = first = succ;
+            else
+            	// 否则前一个节点的下一个节点等于当前节点的下一个节点
+                pred.next = succ;
+            // 如果下一个节点不为null
+            if (succ != null)
+            	// 下一个节点的前一个节点等于当前节点的前一个几点
+                succ.prev = pred;
+            // 如果当前节点的下一个节点为null，直接结束
+            if (first == null)
+                return;
+            // 根节点的父节点不为空，就去寻找根节点
+            if (root.parent != null)
+                root = root.root();
+            // 根节点为null或者根节点的右子节点为null或者根节点的左子节点为null，或者根节点的左子节点的左子节点为null
+            if (root == null || root.right == null ||
+                (rl = root.left) == null || rl.left == null) {
+                // 则从哈希桶的位置开始反树化，然后结束
+                tab[index] = first.untreeify(map);  // too small
+                return;
+            }
+            // 获取当前节点的左子节点，右子节点
+            TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+            // 如果左右子节点均不为null，执行红黑树的删除操作
+            if (pl != null && pr != null) {
+                TreeNode<K,V> s = pr, sl;
+                while ((sl = s.left) != null) // find successor
+                    s = sl;
+                boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+                TreeNode<K,V> sr = s.right;
+                TreeNode<K,V> pp = p.parent;
+                if (s == pr) { // p was s's direct parent
+                    p.parent = s;
+                    s.right = p;
+                }
+                else {
+                    TreeNode<K,V> sp = s.parent;
+                    if ((p.parent = sp) != null) {
+                        if (s == sp.left)
+                            sp.left = p;
+                        else
+                            sp.right = p;
+                    }
+                    if ((s.right = pr) != null)
+                        pr.parent = s;
+                }
+                p.left = null;
+                if ((p.right = sr) != null)
+                    sr.parent = p;
+                if ((s.left = pl) != null)
+                    pl.parent = s;
+                if ((s.parent = pp) == null)
+                    root = s;
+                else if (p == pp.left)
+                    pp.left = s;
+                else
+                    pp.right = s;
+                if (sr != null)
+                    replacement = sr;
+                else
+                    replacement = p;
+            }
+            else if (pl != null)
+                replacement = pl;
+            else if (pr != null)
+                replacement = pr;
+            else
+                replacement = p;
+            if (replacement != p) {
+                TreeNode<K,V> pp = replacement.parent = p.parent;
+                if (pp == null)
+                    root = replacement;
+                else if (p == pp.left)
+                    pp.left = replacement;
+                else
+                    pp.right = replacement;
+                p.left = p.right = p.parent = null;
+            }
+
+            TreeNode<K,V> r = p.red ? root : balanceDeletion(root, replacement);
+
+            if (replacement == p) {  // detach
+                TreeNode<K,V> pp = p.parent;
+                p.parent = null;
+                if (pp != null) {
+                    if (p == pp.left)
+                        pp.left = null;
+                    else if (p == pp.right)
+                        pp.right = null;
+                }
+            }
+            if (movable)
+                moveRootToFront(tab, r);
+        }
+```
 - `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`
 - `static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p)`
 - `static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root, TreeNode<K,V> p)`
