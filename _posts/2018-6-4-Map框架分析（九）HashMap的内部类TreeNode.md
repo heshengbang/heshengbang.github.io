@@ -4,11 +4,12 @@ layout: post
 
 title: Map框架分析（九）HashMap的内部类TreeNode
 
-date: 2018-6-3
+date: 2018-6-4
 
 tags: Java基础
 
 ---
+
 
 本文基于JDK 1.8。在阅读源码的过程中，发现自己很多地方不能自洽，应该是对源码的理解有很大问题，本文自做记录不作参考，切勿以本文作参考！
 
@@ -21,11 +22,13 @@ tags: Java基础
 	- 方法
 - HashMap
 	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
-	- [HashMap中的方法和属性](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法和属性/)
-		- [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
-		- [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
-		- [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
+		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析（九）HashMap的内部类TreeNode/)
+	- HashMap中的方法和成员变量
+		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
+		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)
+            - [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
+            - [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
+            - [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
 
 
 #### 简述
@@ -113,7 +116,7 @@ tags: Java基础
 
 - `static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root)` 保证给定根节点一定在链表结构的最前端，也就是hash桶中。思路如下：
 		1. 判断给定节点和哈希桶数组均不为空，同时哈系桶数组的大小大于0，否则直接结束
-		2. 通过哈系桶数组的大小和给定节点的hash值求模，获取给定节点在哈系桶数组中的位置，然后获取到该位置当前存放的节点first
+		2. 通过哈系桶数组的大小和给定节点的hash值做位与操作，获取给定节点在哈系桶数组中的位置，然后获取到该位置当前存放的节点first
 		3. 判断给定节点和first是否相同，如果相同则直接结束
 		4. 将给定节点放到步骤2中确定的哈希桶数组位置中
 		5. 获取给定节点的上一个节点rp
@@ -185,7 +188,7 @@ static int tieBreakOrder(Object a, Object b) {
   步骤如下：
     1. 如果a为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
     2. 如果a不为空，b为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
-    3. 如果a不为空，b也不为空，则判断a的类名和b的类名是否相等（字符串比较）
+    3. 如果a不为空，b也不为空，则判断a的类名和b的类名是否相等（字符串比较）splitsplit
     	- 如果相等则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
     	- 如果不相等，则返回a的类名和b的类名比较的结果
 
@@ -363,7 +366,7 @@ final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
             // 如果哈希桶为空或者桶长度为0则直接结束
             if (tab == null || (n = tab.length) == 0)
                 return;
-			// 用节点的哈希值去模哈希桶的大小，找到该节点在哈希桶中的位置
+			// 用节点的哈希值和哈希桶的大小做位与操作，找到该节点在哈希桶中的位置
             int index = (n - 1) & hash;
             // 获取哈希桶中的节点，并将其作为根节点
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
@@ -468,7 +471,7 @@ final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
         }
 ```
 
-- `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`
+- `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`，该方法将map的哈希桶中索引为index的元素，及以其为根节点的红黑树拆分放到放到新的哈希桶tab中
 ```java
 final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> b = this;
@@ -476,9 +479,20 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> loHead = null, loTail = null;
             TreeNode<K,V> hiHead = null, hiTail = null;
             int lc = 0, hc = 0;
+            // 遍历当前元素为根节点的红黑树。
+            // TreeNode保存了两种结构，一种是链表，持有前后节点的引用。一种是红黑树，持有左右字数以及父节点的引用。
+            // 此处遍历是通过链表结构进行遍历。
+            // 扩容以后，链表的节点将被分为两部分
+            // 以4/11在8的哈希桶中的的索引一致都是(4 mod 7)=4为例
+            // 在16的哈希桶中，4的索引还是(4 mod 15)=4，但是11的索引却变成了(11 mod 15) = 7+4
+            // 就像上面的例子一样，扩容后，原本在一个链表的节点会被分为两部分
+            // 一部分的索引不变，另一部分的索引变成了之前的位与结果+索引
             for (TreeNode<K,V> e = b, next; e != null; e = next) {
+            	// 保存当前元素的下一个节点
                 next = (TreeNode<K,V>)e.next;
+                // 将当前节点的下一个元素置为null，去除所有引用后，方便gc
                 e.next = null;
+                // 当元素是旧哈希桶的第一个元素时
                 if ((e.hash & bit) == 0) {
                     if ((e.prev = loTail) == null)
                         loHead = e;
@@ -487,6 +501,7 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
                     loTail = e;
                     ++lc;
                 }
+                // 当元素不是旧哈希桶第一个元素时
                 else {
                     if ((e.prev = hiTail) == null)
                         hiHead = e;
@@ -496,9 +511,11 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
                     ++hc;
                 }
             }
-
+            // 如果是哈希桶的第一个元素
             if (loHead != null) {
+            	// 红黑树的节点数目小于反树化
                 if (lc <= UNTREEIFY_THRESHOLD)
+                	// 进行反树化操作
                     tab[index] = loHead.untreeify(map);
                 else {
                     tab[index] = loHead;
