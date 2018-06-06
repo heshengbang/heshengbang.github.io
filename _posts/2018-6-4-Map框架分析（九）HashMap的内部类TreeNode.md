@@ -475,16 +475,14 @@ final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
 ```java
 final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> b = this;
-            // Relink into lo and hi lists, preserving order
+            // 将链表分为高位子链表，低位子链表，重新连接节点，并保存在原有链表中的顺序
             TreeNode<K,V> loHead = null, loTail = null;
             TreeNode<K,V> hiHead = null, hiTail = null;
             int lc = 0, hc = 0;
             // 遍历当前元素为根节点的红黑树。
             // TreeNode保存了两种结构，一种是链表，持有前后节点的引用。一种是红黑树，持有左右字数以及父节点的引用。
             // 此处遍历是通过链表结构进行遍历。
-            // 扩容以后，链表的节点将被分为两部分
-            // 以4/11在8的哈希桶中的的索引一致都是(4 mod 7)=4为例
-            // 在16的哈希桶中，4的索引还是(4 mod 15)=4，但是11的索引却变成了(11 mod 15) = 7+4
+            // 扩容以后，链表的节点将被分为两部分【这一部分的原理见[HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)扩展部分】
             // 就像上面的例子一样，扩容后，原本在一个链表的节点会被分为两部分
             // 一部分的索引不变，另一部分的索引变成了之前的位与结果+索引
             for (TreeNode<K,V> e = b, next; e != null; e = next) {
@@ -511,20 +509,28 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
                     ++hc;
                 }
             }
-            // 如果是哈希桶的第一个元素
+            // 关于这里计算树化的问题。当代码执行到这里的时候lc+hc的数值是足够被树化的
+            // 当lc或hc中任一个数字大于反树化的标准的时候
+            // 如果另一个子链表为空，则必然已经被树化
+            // 如果另一个子链表不为空，则有可能需要背树化
             if (loHead != null) {
-            	// 红黑树的节点数目小于反树化
+            	// 红黑树的节点数目小于反树化的阈值
                 if (lc <= UNTREEIFY_THRESHOLD)
-                	// 进行反树化操作
+                	// 进行反树化操作，获得的链表，并放入新哈希桶数组对应的位置
                     tab[index] = loHead.untreeify(map);
                 else {
+                	// 低位子链表直接放入新的哈希桶数组对应的位置
                     tab[index] = loHead;
+                    // ?
                     if (hiHead != null) // (else is already treeified)
                         loHead.treeify(tab);
                 }
             }
             if (hiHead != null) {
+            	// 红黑树的节点数目小于反树化的阈值
                 if (hc <= UNTREEIFY_THRESHOLD)
+                	// 进行反树化操作，获得的链表，并放入新哈希桶数组对应的位置
+                    // 注意这里index+bit这个操作，跟上面分高低位子链表的操作之间的关联
                     tab[index + bit] = hiHead.untreeify(map);
                 else {
                     tab[index + bit] = hiHead;
