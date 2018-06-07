@@ -192,7 +192,7 @@ static int tieBreakOrder(Object a, Object b) {
     	- 如果相等则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
     	- 如果不相等，则返回a的类名和b的类名比较的结果
 
-- `final void treeify(Node<K,V>[] tab)` 树化此节点所在的节点列表，源码如下：
+- `final void treeify(Node<K,V>[] tab)` 将此节点所在的链表改在为红黑树。该方法仅在HashMap的treeifyBin()、HashMap.TreeNode中的split()中被调用，源码如下：
 ```java
 final void treeify(Node<K,V>[] tab) {
     	// 定义一个根节点
@@ -200,27 +200,29 @@ final void treeify(Node<K,V>[] tab) {
         // 定义节点x和next
         // 从当前节点开始遍历
         for (TreeNode<K,V> x = this, next; x != null; x = next) {
-            // next置为当前节点的下一个节点
+            // 保存下一个节点的引用
             next = (TreeNode<K,V>)x.next;
-            // 将当前节点的左右子节点置为null
+            // 将节点的左右子节点设为null，以此清除之前的连接
             x.left = x.right = null;
-            // 判断根节点是否为null，如果为空则说明根节点尚未构建，则构建根节点
+            // 遍历第一次，创建并保存根节点
             if (root == null) {
-                // 如果根节点为null，则将当前节点的父节点置为null
+                // 根节点的父节点必然为null
                 x.parent = null;
-                // 当前节点颜色置为黑
+                // 红黑树的根节点必然为黑色
                 x.red = false;
                 // 将当前节点置为根节点
                 root = x;
             } else {
-                // 如果根节点不为null，则证明根节点构建完毕，开始以根节点为基础构建左右子节点
+                // 以根节点为基础构建左右子节点
                 // 获取当前节点的key
                 K k = x.key;
                 // 获取当前节点的hash
                 int h = x.hash;
                 // 定义类型变量，用来保存key的类型
                 Class<?> kc = null;
-                // 以根节点为基础，遍历寻找x应该插入的位置，主要以x的哈希值与节点的哈希值为比较依据
+                // 以根节点为基础，遍历红黑树
+                // 当待插入的节点的哈希值小于等于树节点的哈希值，转向左子树，当哈希值大于树节点的哈希值，转向右子树
+                // 如果子树为空，则执行插入操作，如果不为空，则以子树为树节点，继续遍历比较
                 for (TreeNode<K,V> p = root;;) {
                     int dir, ph;
                     K pk = p.key;
@@ -230,73 +232,61 @@ final void treeify(Node<K,V>[] tab) {
                     // 如果根节点的哈希值小于x的哈希值h，则dir为1
                     else if (ph < h)
                         dir = 1;
-                    // 如果哈希值相等且key的类型实现了Comparable接口，则将dir赋值为通过比较key的类型名字比较的结果
-                    // 如果key为空或者key均没实现Comparable接口，则将dir赋值为key的哈希值比较或者类名比较的结果
+                    // 经过上面两步比较，这里哈希值一定是相等的。
+                    // 判断待插入节点的key值类型和树节点的key值类型
+                    // 如果key的类型不同，则根据类型大小来判断待插入节点和树节点的大小
+                    // 如果类型相同则采用key的哈希值来进行比较
+                    // 由于HashMap的key具有唯一性，是hash值保障的，因此这一步一定能比较出待插入节点与树节点的大小
                     else if ((kc == null && (kc = comparableClassFor(k)) == null) || (dir = compareComparables(kc, k, pk)) == 0)
-                    dir = tieBreakOrder(k, pk);
+                    	dir = tieBreakOrder(k, pk);
                     TreeNode<K,V> xp = p;
-                    // 根据上面的比较结果判断该继续从左子节点还是右子节点继续比较
-                    // 如果获得的左子树或右子树为空, 则将节点插入当左节点或者右节点
+                    // 根据待插入节点和树节点的大小决定转向左子树还是右子树
+                    // 子树为空则平衡插入，子树不为空则执行下一次遍历比较
                     if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    	// 代码执行到这里的时候，已经确定待插入节点会被插入到子树中
+                        // 将树节点作为待插入节点的父节点
                         x.parent = xp;
                         if (dir <= 0)
+                        	// 待插入节点指定为树节点的左子节点
                             xp.left = x;
                         else
+                        	// 待插入节点指定为树节点的右子节点
                             xp.right = x;
+                        // 
                         root = balanceInsertion(root, x);
                         break;
                     }
                 }
             }
         }
+        // 构建红黑树结束以后，将TreeNode的链表中红黑树的根节点移做链表头结点
         moveRootToFront(tab, root);
     }
 ```
-  步骤：
-	1. （从当前节点开始遍历节点数组）将当前节点赋值为p
-	2. 如果红黑树根节点为空，则将p设为红黑树的根节点，p等于自己的下一个节点，进入步骤1
-	3. （如果红黑树的根节点不为空，则从根节点遍历红黑树）比较树节点和p的哈希值大小
-	4. 如果p的哈希值小于树节点的哈希值则得到树的左子节点
-		- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
-		- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
-	5. 如果p的哈希值大于树节点的哈希值则得到树的右子节点
-		- 如果右子节点为空，则将p执行平衡插入到红黑树中，作为树节点的右子节点，将p=p.next进入步骤2
-		- 如果右子节点不为空，则进入左子节点继续比较，循环到步骤3
-	6. 如果哈希值相等，则判断p的key和树的key的类型
-		- 如果p的key没实现Comparable接口，或者，p的key类型等于树节点的key的类型，则判断p的key的哈希值与树节点的key的哈希值的大小
-			- 如果p的key的哈希值大，则得到树的左子节点
-				- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
-				- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
-			- 如果树节点的key的哈希值大，则得到树的右子节点
-				- 如果右子节点为空，则将p执行平衡插入到红黑树中，作为树节点的右子节点，将p=p.next进入步骤2
-				- 如果右子节点不为空，则进入左子节点继续比较，循环到步骤3
-		- 否则得到树的左子节点
-			- 如果左子节点为空，则将p执行平衡插入到红黑树，作为树节点的左子节点，将p=p.next进入步骤2
-			- 如果左子节点不为空，则将树节点设为其左子节点，循环到步骤3
+	- 需要说明的是TreeNode实例调用treeify()构建红黑树，但是构建过程中并没有拆解TreeNode实例所在的链表结构。因此，完成红黑树构建以后，每个TreeNode实例实际存在两套结构中：链表、红黑树。这就是为什么TreeNode中也定义了prev成员变量，这可以和HashMap.Node中的next成员变量配合使用，使TreeNode的链表形成双向链表。
 
-- `final Node<K,V> untreeify(HashMap<K,V> map)`，返回一个非TreeNode的链表。这个方法的作用是将一组红黑树转换为一个链表。
+- `final Node<K,V> untreeify(HashMap<K,V> map)`，该方法将TreeNode类型节点的链表转换为普通Node链表，并返回普通Node链表的头结点。该方法仅在HashMap.TreeNode的removeTreeNode和split中被调用。
 ```java
 final Node<K,V> untreeify(HashMap<K,V> map) {
+			// hd被用来保存头结点的引用，t1用来保存链表遍历过程中的节点
             Node<K,V> hd = null, tl = null;
+            // 遍历节点
             for (Node<K,V> q = this; q != null; q = q.next) {
+            	// 将TreeNode转换为普通的Node节点
                 Node<K,V> p = map.replacementNode(q, null);
+                // 如果为遍历的第一次，则保存头结点其引用
                 if (tl == null)
                     hd = p;
                 else
+                	// 将上一个节点的下一个节点指向当前这个节点
                     tl.next = p;
                 tl = p;
             }
+            // 返回链表的头结点
             return hd;
         }
 ```
-  步骤：
-		1. 从当前节点q开始遍历
-		2. 将q从TreeMap转成Node类型的p
-			- 如果是遍历的首次，则将头节点赋值给hd
-			- 如果不是首次遍历，则将p赋值给t1的下一个值
-		3. 将p赋值给t1
-		4. q=q.next，进入步骤2
-		5. 遍历结束，返回最开始记录的头结点hd
+	- 反树化的过程就是将TreeNode转化为Node，这一过程中通过TreeNode中的key、value、hash创建Node节点，丢失了TreeNode作为红黑树的父子节点，作为双向链表结构的前节点。经过反树化以后，TreeNode实例所在的哈希桶中，没有红黑树，也没有双向链表，只有一个Node做节点的单向链表。
 
 - `final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v)`，红黑树版的putVal()方法
 ```java
@@ -471,7 +461,7 @@ final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab, boolean movable) {
         }
 ```
 
-- `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`，该方法将map的哈希桶中索引为index的元素，及以其为根节点的红黑树拆分放到放到新的哈希桶tab中
+- `final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)`，该方法将HashMap哈希桶中索引为index的元素，及以其为根节点的红黑树拆分放到放到新的哈希桶tab中。该方法只在HashMap的实例方法resize()中被调用
 ```java
 final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> b = this;
@@ -480,7 +470,8 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> hiHead = null, hiTail = null;
             int lc = 0, hc = 0;
             // 遍历当前元素为根节点的红黑树。
-            // TreeNode保存了两种结构，一种是链表，持有前后节点的引用。一种是红黑树，持有左右字数以及父节点的引用。
+            // TreeNode保存了两种结构，一种是链表，持有前后节点的引用
+            // 一种是红黑树，持有左右字数以及父节点的引用。
             // 此处遍历是通过链表结构进行遍历。
             // 扩容以后，链表的节点将被分为两部分【这一部分的原理见[HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)扩展部分】
             // 就像上面的例子一样，扩容后，原本在一个链表的节点会被分为两部分
@@ -509,8 +500,8 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
                     ++hc;
                 }
             }
-            // 关于这里计算树化的问题。当代码执行到这里的时候lc+hc的数值是足够被树化的
-            // 当lc或hc中任一个数字大于反树化的标准的时候
+            // 关于这里计算树化的问题。当代码执行到这里的时候lc+hc的数值是大于TREEIFY_THRESHOLD
+            // 当lc或hc中任一个数字大于UNTREEIFY_THRESHOLD
             // 如果另一个子链表为空，则必然已经被树化
             // 如果另一个子链表不为空，则有可能需要背树化
             if (loHead != null) {
@@ -521,8 +512,7 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
                 else {
                 	// 低位子链表直接放入新的哈希桶数组对应的位置
                     tab[index] = loHead;
-                    // ?
-                    if (hiHead != null) // (else is already treeified)
+                    if (hiHead != null)
                         loHead.treeify(tab);
                 }
             }
@@ -583,40 +573,56 @@ static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
         }
 ```
 
-- `static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)`
+- `static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)`，HashMap.TreeNode中执行红黑树平衡插入的方法，在调用这个方法之前，待插入节点已经被放置在红黑树中，这个方法的目的在于调整x插入到红黑树后，其父子节点的颜色以保持x插入红黑树以后，红黑树依然能维持它的五个属性。仅在HashMap.TreeNode中的putTreeVal()方法，treeify()方法被调用。x为待插入的节点，root为待插入的红黑树的根节点。
 ```java
-static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
-                                                    TreeNode<K,V> x) {
+static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x) {
+			// 插入的节点只能是红色。因为红黑树性质5要求根节点到任一叶子节点的黑色个数相等
+            // 如果插入节点为黑色，则不能满足该性质。关于红黑色及其性质见本文拓展部分。
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
+            	// 如果待插入节点x的父节点为null，则带插入节点为根节点，直接返回
                 if ((xp = x.parent) == null) {
                     x.red = false;
                     return x;
                 }
+                // 如果待插入节点的父节点为黑色或者它的父节点为null，那就不必再做调整，直接返回根节点
                 else if (!xp.red || (xpp = xp.parent) == null)
                     return root;
+                // 如果待插入节点的父节是其父节点的左子节点
+                // xp是带插入节点的父节点，xpp是待插入节点的父节点的父节点，xppl是带插入节点的父节点的父节点的左子节点
+                // 下面这个判断的意思就是待插入节点的父节点，是待插入节点的祖父节点点的左子节点【这块参照文章的拓展部分，关于红黑树的插入的三种情况】
                 if (xp == (xppl = xpp.left)) {
+                	// 如果叔父节点为红色
                     if ((xppr = xpp.right) != null && xppr.red) {
                         xppr.red = false;
                         xp.red = false;
                         xpp.red = true;
                         x = xpp;
                     }
+                    // 叔父节点为黑色或者不存在
                     else {
+                    	// 节点插入到父节点右子节点
                         if (x == xp.right) {
+                        	// 进行单左旋转
                             root = rotateLeft(root, x = xp);
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
+                        // 父节点不为空，需要重新着色
                         if (xp != null) {
+                        	// 左旋后，父节点为黑色
                             xp.red = false;
+                            // 祖父节点不为空，左旋后为父节点的
                             if (xpp != null) {
                                 xpp.red = true;
+                                // 右旋转
                                 root = rotateRight(root, xpp);
                             }
                         }
                     }
                 }
+                // 父节点是祖父节点的右子节点
                 else {
+                	// 叔父节点不为null，并且为红
                     if (xppl != null && xppl.red) {
                         xppl.red = false;
                         xp.red = false;
@@ -624,7 +630,9 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                         x = xpp;
                     }
                     else {
+                    	// 插入的节点为左子节点
                         if (x == xp.left) {
+                        	// 单右旋转
                             root = rotateRight(root, x = xp);
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
@@ -632,6 +640,7 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                             xp.red = false;
                             if (xpp != null) {
                                 xpp.red = true;
+                                // 左旋转
                                 root = rotateLeft(root, xpp);
                             }
                         }
@@ -810,13 +819,38 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
 ### 红黑树
 - 在二叉搜索树的基础上，要保证整个树形结构大部分是平衡的，即任一节点的左子树后代数目和右子树的后代数目大致相等，数量不能过于悬殊。红黑树即保证了二叉搜索树的这一平衡性质的树形结构。
 - 红黑树的特征：
-	- 节点是红色或黑色
-	- 根是黑色
-	- 所有叶子（包含空叶子节点nil）都是黑色
-	- 如果一个节点是红的，则它的两个子节点都是黑的
-	- 从任一节点到其叶子（包含空叶子节点nil）的所有简单路径都包含相同数目的黑色节点
+	1. 节点是红色或黑色
+	2. 根节点是黑色
+	3. 每个叶节点（NIL节点，空节点）是黑色的
+	4. 每个红色节点的两个子节点都是黑色（从每个叶子到根的所有路径上不能有两个连续的红色节点）
+	5. 从任一节点到其每个叶子的所有路径都包含相同数目的黑色节点
 
-- 红黑树的插入，参照二叉搜索树
+- 红黑树的插入
+	- 插入的节点必为红色。因为根据性质5，根节点到叶子节点的路径上黑节点的数量是相同的，如果插入节点为黑色，则会违背该性质
+	- 插入，分为以下情况：
+		- 插入到一颗空树
+			- 节点插入的树为空树，则可以直接以插入节点为根节点，但是要将插入节点重新改为黑色，满足性质2
+		- 插入的父节点为黑色
+			- 节点插入的父节点为黑色，满足所有条件，无需调整
+		- 插入的父节点为红色。父节点为红色，根据性质2和性质4，则父节点必然还有父节点。这样又要分作以下情况：
+			- 父节点和叔父节点均为红色，无法满足性质4，需要将父节点与叔父节点均设为黑色，祖父节点设为红色
+				- 此时，如果祖父节点为根节点则与性质2相违背
+				- 祖父节点不为根节点，由于其颜色发生了变化所以需要将其作为一个全新的节点向上递归，调整颜色
+			- 如果父节点为红色，而叔父节点为黑色或者不存在
+				- 父节点为左子节点
+                    - 插入的节点为父节点的左子节点，此时无法满足性质4
+                    	- 此时，插入的节点与其父节点构成了左左结构，需要对其父节点进行右旋操作
+                    	- 父节点替换祖父节点的位置，祖父节点作为父节点的右子节点，依次将父节点改为黑色，祖父节点改为红色，则满足红黑树的所有性质。
+                    - 插入的节点为父节点的右子节点，此时无法满足性质4
+                    	- 此时，插入节点与其父节点构成了左右结构，红黑树需要将这个新插入节点左旋转为父节点的左子节点，再参考上一步骤进行操作
+                - 父节点为右子节点
+                	- 插入的节点为父节点的左子节点
+                		- 此时，插入节点与父节点构成右左结构，先转为右右结构，再参照下一部的步骤进行操作
+                    - 插入的节点为父节点的右子节点
+                    	- 此时，插入节点与父节点构成右右结构，对父节点进行左旋操作
+                    	- 父节点为祖父节点，祖父节点为父节点的左自己诶单，一次将福界定啊改为黑色，祖父节点改为红色，则满足红黑树的所有性质
+
+
 - 红黑树的删除，参照二叉搜索树
 - 红黑树平衡修正：对红-黑树进行添加或删除后，可能会破坏其平衡性，进而需要进行修正
 	- 左旋
