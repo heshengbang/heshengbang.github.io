@@ -531,47 +531,76 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
         }
 ```
 
-- `static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p)`
+- `static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p)`，红黑树方法，所有的调整都是为了适应CLR
 ```java
-static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
-                                              TreeNode<K,V> p) {
+static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root, TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
+            // 左旋的节点p不为null，并且有右子节点r，r不为null
             if (p != null && (r = p.right) != null) {
+            	// 如果r有左子节点rl，则将其与p的右子节点相关联
                 if ((rl = p.right = r.left) != null)
                     rl.parent = p;
+                // 将r的节点指向p的父节点，如果p的父节点为null，则以r为根节点并且将其置为黑色
                 if ((pp = r.parent = p.parent) == null)
                     (root = r).red = false;
+                // 如果p的父节点不为null，则将p的父节点指向r
                 else if (pp.left == p)
                     pp.left = r;
                 else
                     pp.right = r;
+                // r的左子节点指向p
                 r.left = p;
+                // p的父节点指向r
                 p.parent = r;
             }
             return root;
         }
 ```
+	- 左旋的过程涉及到左旋的点p，p的父节点pp，p的右子节点r，r的左子节点rl。左旋的目的断开旧连接（[将p与父节点pp、右子节点r之间的关系断开],[r与父节点p、左子节点rl之间的关系断开]），建立新连接（[p与新父节点r,新右子节点rl建立互相关联],[r与新父节点pp，新左子节点p建立互相关联]）。
+	- 步骤简述：
+		- 如果待左旋的节点p为null或者左旋节点的右子节点r为null，则直接返回根节点
+		- 待左旋节点p不为null，同时待左旋节点的右子节点r不为null
+			- p的右子节点指向r的左子节点rl，rl如果不为null则将其父节点指向p，至此p和rl互相关联
+			- r的父节点指向p的父节点pp，判断pp是否为null
+				- 如果pp为null，则将根节点指向r，并重新对r着色
+				- 如果pp不为null，而p是pp的左子节点或右子节点，则将pp的左子节点或右子节点指向r，至此r和pp互相关联
+			- r的左子节点指向p，p的父节点指向r，至此p和r互相关联上
 
-- `static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root, TreeNode<K,V> p)`
+
+
+- `static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root, TreeNode<K,V> p)`，右旋基本上和左旋保持对称一致的关系
 ```java
-static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
-                                               TreeNode<K,V> p) {
+static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root, TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
+            	// p的左子节点指向lr
                 if ((lr = p.left = l.right) != null)
+                	// lr的父节点指向p，完成p与新左子节点lr的互相关联
                     lr.parent = p;
+                // l的父节点指向pp
                 if ((pp = l.parent = p.parent) == null)
                     (root = l).red = false;
+                // pp的子节点指向l，完成l与新父节点pp的互相
                 else if (pp.right == p)
                     pp.right = l;
                 else
                     pp.left = l;
+                // 完成l与新右子节点的互相
                 l.right = p;
                 p.parent = l;
             }
             return root;
         }
 ```
+	- 右旋包括了四个角色，右旋节点p，p的父节点pp，p的左子节点l，l的右子节点lr。右旋的基本操作是断开旧关联，建立新关联
+		- 断开旧关联
+			- 断开，p与父节点pp的关联，p与左子节点l的关联
+			- 断开，l与父节点p的关联，l与右子节点lr的关联
+		- 建立新关联
+			- 建立，l与新父节点pp的关联，l与新右子节点p的关联
+			- 建立，p与新父节点r的关联，p与新左子节点lr的关联
+
+	- 左旋和右旋归纳总结其实就是断开三个链接，重新建立三个链接，所谓三破三立。分别掌握左旋和右旋的基本结构，三破三立就非常方便完成。
 
 - `static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)`，HashMap.TreeNode中执行红黑树平衡插入的方法，在调用这个方法之前，待插入节点已经被放置在红黑树中，这个方法的目的在于调整x插入到红黑树后，其父子节点的颜色以保持x插入红黑树以后，红黑树依然能维持它的五个属性。仅在HashMap.TreeNode中的putTreeVal()方法，treeify()方法被调用。x为待插入的节点，root为待插入的红黑树的根节点。
 ```java
@@ -580,39 +609,45 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)
             // 如果插入节点为黑色，则不能满足该性质。关于红黑色及其性质见本文拓展部分。
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
-            	// 如果待插入节点x的父节点为null，则带插入节点为根节点，直接返回
+            	// 如果插入一颗空树，则可以直接插入并根据性质2对插入节点着色为黑，即可返回
                 if ((xp = x.parent) == null) {
                     x.red = false;
                     return x;
                 }
-                // 如果待插入节点的父节点为黑色或者它的父节点为null，那就不必再做调整，直接返回根节点
+                // 如果待插入节点的父节点为黑色或者它的祖父节点为null，那就不必再做调整，直接返回根节点
                 else if (!xp.red || (xpp = xp.parent) == null)
                     return root;
                 // 如果待插入节点的父节是其父节点的左子节点
                 // xp是带插入节点的父节点，xpp是待插入节点的父节点的父节点，xppl是带插入节点的父节点的父节点的左子节点
-                // 下面这个判断的意思就是待插入节点的父节点，是待插入节点的祖父节点点的左子节点【这块参照文章的拓展部分，关于红黑树的插入的三种情况】
+                // 下面这个判断的意思就是待插入节点的父节点，是待插入节点的祖父节点的左子节点【这块参照文章的拓展部分，关于红黑树的插入的三种情况】
                 if (xp == (xppl = xpp.left)) {
-                	// 如果叔父节点为红色
+                	// 父节点为祖父节点的左子节点，叔父节点为祖父节点的右子节点，叔父节点不为null并且叔父节点为红色
                     if ((xppr = xpp.right) != null && xppr.red) {
                         xppr.red = false;
                         xp.red = false;
                         xpp.red = true;
+                        // 在对父节点、叔父节点、祖父节点重新着色以后
+                        // 以祖父节点为根节点的子树中红黑树的五条性质是符合的
+                        // 以祖父节点为新插入的节点进入下一次循环，调整，自下而上直至根节点，完成整颗红黑树的再次平衡
                         x = xpp;
                     }
                     // 叔父节点为黑色或者不存在
                     else {
-                    	// 节点插入到父节点右子节点
+                    	// 节点插入到父节点右子节点，形成左右结构
                         if (x == xp.right) {
                         	// 进行单左旋转
                             root = rotateLeft(root, x = xp);
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
+                        // 到这里，无论插入节点是插入到父节点的左子节点还是右子节点，总会被调整为左左结构
+                        // 此时，x和xp以及xpp分别往上挪动了一个层级
                         // 父节点不为空，需要重新着色
                         if (xp != null) {
-                        	// 左旋后，父节点为黑色
+                        	// 父节点为黑色
                             xp.red = false;
-                            // 祖父节点不为空，左旋后为父节点的
+                            // 祖父节点不为空
                             if (xpp != null) {
+                            	// 祖父节点为红色
                                 xpp.red = true;
                                 // 右旋转
                                 root = rotateRight(root, xpp);
@@ -826,8 +861,9 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root, TreeNode<K,V> x)
 	5. 从任一节点到其每个叶子的所有路径都包含相同数目的黑色节点
 
 - 红黑树的插入
-	- 插入的节点必为红色。因为根据性质5，根节点到叶子节点的路径上黑节点的数量是相同的，如果插入节点为黑色，则会违背该性质
-	- 插入，分为以下情况：
+	- 插入的节点必为红色
+		- 根据性质5，根节点到叶子节点的路径上黑节点的数量是相同的，如果插入节点为黑色，则会违背该性质
+	- 执行插入，分为以下情况：
 		- 插入到一颗空树
 			- 节点插入的树为空树，则可以直接以插入节点为根节点，但是要将插入节点重新改为黑色，满足性质2
 		- 插入的父节点为黑色
