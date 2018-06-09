@@ -106,7 +106,6 @@ tags: Java基础
     public HashMap(Map<? extends K, ? extends V> m) {
     	// 使用默认负载因子
         this.loadFactor = DEFAULT_LOAD_FACTOR;
-        // 
         putMapEntries(m, false);
     }
     ```
@@ -144,9 +143,494 @@ tags: Java基础
 - `static final int hash(Object key)`
 	- 获取传入对象的哈希值。
 
+- `static Class<?> comparableClassFor(Object x)`，如果参数x实现了Comparable接口，则返回x的类型，否则返回null。该方法主要在HashMap.TreeMap中和compareComparables()配合使用，分别在find()，treeify()，putTreeVal()中被调用。
+	- 源码如下：
+	```java
+    static Class<?> comparableClassFor(Object x) {
+        if (x instanceof Comparable) {
+            Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
+            if ((c = x.getClass()) == String.class) // bypass checks
+                return c;
+            if ((ts = c.getGenericInterfaces()) != null) {
+                for (int i = 0; i < ts.length; ++i) {
+                    if (((t = ts[i]) instanceof ParameterizedType) &&
+                        ((p = (ParameterizedType)t).getRawType() ==
+                         Comparable.class) &&
+                        (as = p.getActualTypeArguments()) != null &&
+                        as.length == 1 && as[0] == c) // type arg is c
+                        return c;
+                }
+            }
+        }
+        return null;
+    }
+    ```
+    - 涉及到的基本知识点
+    	- ParameterizedType：继承自Type，代表一个提供泛型支持的类型，例如:java.util.Collection<E>
+    		- ParameterizedType#getRawType：获取实际声明的类型对象
+    		- ParameterizedType#getActualTypeArguments：获取实际作为泛型参数的类型，返回值是一个数组对象
+    	- Class#getGenericInterfaces：获取该类直接实现的接口
+    - 代码逻辑：
+    	1. 判断参数x是否实现了Comparable接口，如果没有，则直接返回null
+    	2. 在x实现了Comparable接口的情况下，继续判断下一步骤
+    	3. 参数x是否是String类型的，如果是，则直接返回String.class
+    	4. 在参数x的类型p不是String类型的情况下，继续判断下一步骤
+    	5. 如果p直接实现的接口数组ts为空，则直接返回null
+    	6. 在ts不为空的情况下，继续下一步骤
+    	7. 循环遍历ts，从t开始
+    		- 如果t是一个参数化类型的实例，同时t的实际声明类型是Comparable.class，同时t的泛型参数的个数为1，并且泛型参数就是x的类型c，则返回类型c
+    	8. 在以上方式都没找到的情况下，则返回null
+    - 简单点来说，这个方法就是用来判断传入的对象是否为String类型或者实现了Comparable接口的类的实例
+
+- `static int compareComparables(Class<?> kc, Object k, Object x)`，比较两个对象的大小。该方法主要在HashMap.TreeMap中和comparableClassFor()配合使用，分别在find()，treeify()，putTreeVal()中被调用。
+	- 源码如下：
+	```java
+    static int compareComparables(Class<?> kc, Object k, Object x) {
+        return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
+    }
+    ```
+    - 基本逻辑：
+    	1. 如果参数x为null，则返回0（这并不表示两个对象相等）
+    	2. 如果x不为null，但是x的类型不等于传入的参数kc，则返回0（这并不表示两个对象相等）
+    	3. 如果x不为null，同时x的类型等于传入的参数kc，则用类型kc中实现的Comparable接口方法比较对象的大小，并返回结果
+    	4. 注意，此方法要和comparableClassFor()方法配合使用，或者至少保证参数k的类型实现了Comparable接口，否则会报强转失败
+
 ### HashMap的实例方法
-- `final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict)`
-	- 在HashMap的clone()、HashMap()、putAll()被调用，用来将已有的map作为数据放入HashMap中。
+- `public int size()`，获取HashMap当前的大小。
+	- 源码如下：
+	```java
+    public int size() {
+        return size;
+    }
+    ```
+
+- `public boolean isEmpty()`，判断HashMap实例是否为空
+	- 源码如下：
+	```java
+    public boolean isEmpty() {
+        return size == 0;
+    }
+    ```
+
+- `public V get(Object key)`，根据key获取value
+	- 源码如下：
+	```java
+    public V get(Object key) {
+        Node<K,V> e;
+        return (e = getNode(hash(key), key)) == null ? null : e.value;
+    }
+    ```
+
+- `public V getOrDefault(Object key, V defaultValue)`，获取key对应的value，如果value为null就返回defaultValue。
+	- 源码如下：
+	```java
+    @Override
+    public V getOrDefault(Object key, V defaultValue) {
+        Node<K,V> e;
+        return (e = getNode(hash(key), key)) == null ? defaultValue : e.value;
+    }
+    ```
+
+- `public V putIfAbsent(K key, V value)`，如果key在HashMap中没有对应的值，就插入value。
+	- 源码如下：
+	```java
+    @Override
+    public V putIfAbsent(K key, V value) {
+        return putVal(hash(key), key, value, true, true);
+    }
+    ```
+
+- `public boolean remove(Object key, Object value)`，移除指定的key-value键值对。
+	- 源码如下：
+	```java
+    @Override
+    public boolean remove(Object key, Object value) {
+        return removeNode(hash(key), key, value, true, true) != null;
+    }
+    ```
+
+- `public boolean containsKey(Object key)`，判断HashMap是否包含某个key值。
+	- 源码如下：
+	```java
+    public boolean containsKey(Object key) {
+        return getNode(hash(key), key) != null;
+    }
+    ```
+
+- `public boolean replace(K key, V oldValue, V newValue)`，使用指定的新值去替换旧的key-value键值对中的value。
+	- 源码如下：
+	```java
+    @Override
+    public boolean replace(K key, V oldValue, V newValue) {
+        Node<K,V> e; V v;
+        if ((e = getNode(hash(key), key)) != null &&
+            ((v = e.value) == oldValue || (v != null && v.equals(oldValue)))) {
+            e.value = newValue;
+            afterNodeAccess(e);
+            return true;
+        }
+        return false;
+    }
+    ```
+
+- `public V replace(K key, V value)`，用指定的key-value键值对替换HashMap中存在的key-oldValue键值对。
+	- 源码如下：
+	```java
+    @Override
+    public V replace(K key, V value) {
+        Node<K,V> e;
+        if ((e = getNode(hash(key), key)) != null) {
+            V oldValue = e.value;
+            e.value = value;
+            afterNodeAccess(e);
+            return oldValue;
+        }
+        return null;
+    }
+    ```
+
+- `public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction)`，该方法初始定义在Map接口中，并且提供了默认实现。
+	- 源码如下：
+	```java
+    @Override
+    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        if (mappingFunction == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        Node<K,V>[] tab; Node<K,V> first; int n, i;
+        int binCount = 0;
+        TreeNode<K,V> t = null;
+        Node<K,V> old = null;
+        if (size > threshold || (tab = table) == null ||
+            (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((first = tab[i = (n - 1) & hash]) != null) {
+            if (first instanceof TreeNode)
+                old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
+            else {
+                Node<K,V> e = first; K k;
+                do {
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k)))) {
+                        old = e;
+                        break;
+                    }
+                    ++binCount;
+                } while ((e = e.next) != null);
+            }
+            V oldValue;
+            if (old != null && (oldValue = old.value) != null) {
+                afterNodeAccess(old);
+                return oldValue;
+            }
+        }
+        V v = mappingFunction.apply(key);
+        if (v == null) {
+            return null;
+        } else if (old != null) {
+            old.value = v;
+            afterNodeAccess(old);
+            return v;
+        }
+        else if (t != null)
+            t.putTreeVal(this, tab, hash, key, v);
+        else {
+            tab[i] = newNode(hash, key, v, first);
+            if (binCount >= TREEIFY_THRESHOLD - 1)
+                treeifyBin(tab, hash);
+        }
+        ++modCount;
+        ++size;
+        afterNodeInsertion(true);
+        return v;
+    }
+    ```
+
+- `public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction)`，该方法初始定义在Map接口中。
+	- 源码如下：
+	```java
+    public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        if (remappingFunction == null)
+            throw new NullPointerException();
+        Node<K,V> e; V oldValue;
+        int hash = hash(key);
+        if ((e = getNode(hash, key)) != null &&
+            (oldValue = e.value) != null) {
+            V v = remappingFunction.apply(key, oldValue);
+            if (v != null) {
+                e.value = v;
+                afterNodeAccess(e);
+                return v;
+            }
+            else
+                removeNode(hash, key, null, false, true);
+        }
+        return null;
+    }
+    ```
+
+- `public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction)`，该方法初始定义在Map接口中。
+	- 源码如下：
+	```java
+    @Override
+    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        if (remappingFunction == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        Node<K,V>[] tab; Node<K,V> first; int n, i;
+        int binCount = 0;
+        TreeNode<K,V> t = null;
+        Node<K,V> old = null;
+        if (size > threshold || (tab = table) == null ||
+            (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((first = tab[i = (n - 1) & hash]) != null) {
+            if (first instanceof TreeNode)
+                old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
+            else {
+                Node<K,V> e = first; K k;
+                do {
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k)))) {
+                        old = e;
+                        break;
+                    }
+                    ++binCount;
+                } while ((e = e.next) != null);
+            }
+        }
+        V oldValue = (old == null) ? null : old.value;
+        V v = remappingFunction.apply(key, oldValue);
+        if (old != null) {
+            if (v != null) {
+                old.value = v;
+                afterNodeAccess(old);
+            }
+            else
+                removeNode(hash, key, null, false, true);
+        }
+        else if (v != null) {
+            if (t != null)
+                t.putTreeVal(this, tab, hash, key, v);
+            else {
+                tab[i] = newNode(hash, key, v, first);
+                if (binCount >= TREEIFY_THRESHOLD - 1)
+                    treeifyBin(tab, hash);
+            }
+            ++modCount;
+            ++size;
+            afterNodeInsertion(true);
+        }
+        return v;
+    }
+    ```
+
+- `public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction)`，该方法初始定义在Map接口中。
+	- 源码如下：
+	```java
+    @Override
+    public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        if (value == null)
+            throw new NullPointerException();
+        if (remappingFunction == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        Node<K,V>[] tab; Node<K,V> first; int n, i;
+        int binCount = 0;
+        TreeNode<K,V> t = null;
+        Node<K,V> old = null;
+        if (size > threshold || (tab = table) == null ||
+            (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((first = tab[i = (n - 1) & hash]) != null) {
+            if (first instanceof TreeNode)
+                old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
+            else {
+                Node<K,V> e = first; K k;
+                do {
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k)))) {
+                        old = e;
+                        break;
+                    }
+                    ++binCount;
+                } while ((e = e.next) != null);
+            }
+        }
+        if (old != null) {
+            V v;
+            if (old.value != null)
+                v = remappingFunction.apply(old.value, value);
+            else
+                v = value;
+            if (v != null) {
+                old.value = v;
+                afterNodeAccess(old);
+            }
+            else
+                removeNode(hash, key, null, false, true);
+            return v;
+        }
+        if (value != null) {
+            if (t != null)
+                t.putTreeVal(this, tab, hash, key, value);
+            else {
+                tab[i] = newNode(hash, key, value, first);
+                if (binCount >= TREEIFY_THRESHOLD - 1)
+                    treeifyBin(tab, hash);
+            }
+            ++modCount;
+            ++size;
+            afterNodeInsertion(true);
+        }
+        return value;
+    }
+    ```
+
+- `public void forEach(BiConsumer<? super K, ? super V> action)`，该方法初始定义在Map接口中。
+	- 源码如下：
+	```java
+    @Override
+    public void forEach(BiConsumer<? super K, ? super V> action) {
+        Node<K,V>[] tab;
+        if (action == null)
+            throw new NullPointerException();
+        if (size > 0 && (tab = table) != null) {
+            int mc = modCount;
+            for (int i = 0; i < tab.length; ++i) {
+                for (Node<K,V> e = tab[i]; e != null; e = e.next)
+                    action.accept(e.key, e.value);
+            }
+            if (modCount != mc)
+                throw new ConcurrentModificationException();
+        }
+    }
+    ```
+
+- `public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function)`，该方法初始定义在Map接口中。
+	- 源码如下：
+	```java
+    @Override
+    public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
+        Node<K,V>[] tab;
+        if (function == null)
+            throw new NullPointerException();
+        if (size > 0 && (tab = table) != null) {
+            int mc = modCount;
+            for (int i = 0; i < tab.length; ++i) {
+                for (Node<K,V> e = tab[i]; e != null; e = e.next) {
+                    e.value = function.apply(e.key, e.value);
+                }
+            }
+            if (modCount != mc)
+                throw new ConcurrentModificationException();
+        }
+    }
+    ```
+
+- `public Object clone()`，克隆当前HashMap的实例，拥有相同的key-value键值对
+	- 源码如下：
+	```java
+    @Override
+    public Object clone() {
+        HashMap<K,V> result;
+        try {
+            result = (HashMap<K,V>)super.clone();
+        } catch (CloneNotSupportedException e) {
+            // this shouldn't happen, since we are Cloneable
+            throw new InternalError(e);
+        }
+        result.reinitialize();
+        result.putMapEntries(this, false);
+        return result;
+    }
+    ```
+
+- `public boolean containsValue(Object value)`，判断HashMap中是否包含指定的value。
+	- 源码如下：
+	```java
+    public boolean containsValue(Object value) {
+        Node<K,V>[] tab; V v;
+        if ((tab = table) != null && size > 0) {
+            for (int i = 0; i < tab.length; ++i) {
+                for (Node<K,V> e = tab[i]; e != null; e = e.next) {
+                    if ((v = e.value) == value || (value != null && value.equals(v)))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+    ```
+
+- `public Set<K> keySet()`，获取HashMap所有键值对中，key值的set集合。
+	- 源码如下：
+	```java
+    public Set<K> keySet() {
+        Set<K> ks;
+        return (ks = keySet) == null ? (keySet = new KeySet()) : ks;
+    }
+    ```
+
+- `public Collection<V> values()`，获取HashMap中所有value的集合。
+	- 源码如下：
+	```java
+    public Collection<V> values() {
+        Collection<V> vs;
+        return (vs = values) == null ? (values = new Values()) : vs;
+    }
+    ```
+
+- `public Set<Map.Entry<K,V>> entrySet()`，获取HashMap中所有的key-value键值对的set集合。
+	- 源码如下：
+	```
+    public Set<Map.Entry<K,V>> entrySet() {
+        Set<Map.Entry<K,V>> es;
+        return (es = entrySet) == null ? (entrySet = new EntrySet()) : es;
+    }
+    ```
+
+- `public V put(K key, V value)`，向HashMap中添加数据。
+	- 源码如下：
+	```java
+    public V put(K key, V value) {
+        return putVal(hash(key), key, value, false, true);
+    }
+    ```
+
+- `public void putAll(Map<? extends K, ? extends V> m)`，将map中所有的键值对放入到HashMap中。
+	- 源码如下：
+	```java
+    public void putAll(Map<? extends K, ? extends V> m) {
+        putMapEntries(m, true);
+    }
+    ```
+
+- `public V remove(Object key)`，从HashMap中移除键值为key的key-value键值对
+	- 源码如下：
+	```java
+    public V remove(Object key) {
+        Node<K,V> e;
+        return (e = removeNode(hash(key), key, null, false, true)) == null ? null : e.value;
+    }
+    ```
+
+- `public void clear()`，删除HashMap中所有的键值对。
+	- 源码如下：
+	```java
+    public void clear() {
+        Node<K,V>[] tab;
+        modCount++;
+        if ((tab = table) != null && size > 0) {
+            size = 0;
+            for (int i = 0; i < tab.length; ++i)
+                tab[i] = null;
+        }
+    }
+    ```
+
+### HashMap的私有方法
+- `final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict)`，将一个map集合中所有的元素都放入HashMap中，该方法仅在HashMap的clone()、HashMap()、putAll()被调用。
 	- 源码如下：
 	```java
     // evict 是一个标记，用来确定调用这个方法是初始化时调用的还是在插入节点时调用的
@@ -177,9 +661,7 @@ tags: Java基础
     }
     ```
 
-### HashMap的私有方法
-- `final Node<K,V>[] resize()`
-	- 扩容，当插入元素后，发现元素总个数大于threshold时，进行扩容
+- `final Node<K,V>[] resize()`，扩容，当插入元素后，发现元素总个数大于threshold时，进行扩容。该方法在putMapEntry(),putVal(),treeifyBin(),computeIfAbsent(),compute(),merge()等方法中被调用。
 	- 源码如下：
 	```java
     final Node<K,V>[] resize() {
@@ -302,7 +784,104 @@ tags: Java基础
                 - 如果有下一个节点，则判断其是否为树节点
                 	- 如果为树节点，则调用HashMap.TreeNode中的split()方法将以该节点为根节点拆分并分别放到新的哈希桶数组的对应位置
                 	- 如果不为树节点，则为链表结构，将以该节点为头结点的链表拆分为两个子链表分别放入新的哈希桶数组的对应位置
-- `final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict)`
+	- 该方法主要包含两个部分，构建新的哈希桶数组，将旧哈希桶中的数据移动到新的哈希桶数组中
+		- 构建新的哈希桶数组：获取新哈希桶的大小，新的扩容阈值
+		- 移动数据：
+			- 遍历旧哈希桶数组的每个哈希桶
+			- 判断其是否没有下一个节点，如果没有下一个节点就根据其hash值和新的哈希桶数组的大小求其新的索引，将其放入
+			- 如果哈希桶中的节点有下一个节点，就判断其是否为树节点，如果是树节点就将拆分红黑树，将所有节点放入新的哈希桶数组中
+			- 如果哈希桶中的节点不为树节点，就将其对应的链表拆分为两部分，分别放入哈希桶数组中
+
+- `final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict)`，将key,value,hash放入HashMap中。该方法在putMapEntries(),put(),putIfAbsent(),readObject()中被调用。onlyIfAbsent表示如果key值已经存在了是否继续插入，evict为true表示不是创建模式。
+	- 源码如下：
+	```java
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        // 如果哈希桶数组为null，则扩容，并获取扩容后的长度
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        // 如果根据哈希找到在哈希桶数组的索引，如果为null，则直接新建node
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+        // 如果索引所在节点不为null
+        else {
+            Node<K,V> e; K k;
+            // 如果传入的hash值和哈希桶中的哈希值相同，并且key值也相同，获取当前哈希桶中的节点引用
+            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            // 如果hash和key不相等，但哈希桶中的节点是树节点
+            else if (p instanceof TreeNode)
+            	// 调用HashMap.TreeNode的putTreeVal方法
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+            if (e != null) { // existing mapping for key
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+        ++modCount;
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
+    ```
+    - putVal()基本上包含六个步骤：
+    	- 判断哈希桶数组是否为空，如果为空则扩容
+    	- 根据hash计算在哈希桶数组中的位置，判断索引对应的哈希桶是否为null，如果为null，则直接创建新节点并插入
+    	- 判断索引对应的哈希桶key和hash是否等于插入节点的值，如果相等则将根据onlyIfAbsent决定是否将新值放入，返回旧的value
+    	- 如果索引对应的哈希桶中的节点是TreeNode就调用TreeNode的putTreeVal()方法插入节点newTreeNode
+    	- 如果不是树节点就遍历普通的Node链表，找到合适的位置插入，插入以后判断链表的长度，如果超过了树化阈值，就进行树化
+    	- 如果插入成功（不包含key值存在而没插入的情况），就判断此时HashMap的大小，如果超过了扩容阈值，就进行扩容
+
+- ` final void treeifyBin(Node<K,V>[] tab, int hash)`，向链表中插入节点后，如果链表的大小超过了树化阈值，就调用此方法将链表转换为红黑树。该方法在putVal(),computeIfAbsent(),compute(),merge()中被调用。
+	- 源码如下：
+	```java
+    final void treeifyBin(Node<K,V>[] tab, int hash) {
+        int n, index; Node<K,V> e;
+        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+            resize();
+        else if ((e = tab[index = (n - 1) & hash]) != null) {
+            TreeNode<K,V> hd = null, tl = null;
+            do {
+                TreeNode<K,V> p = replacementTreeNode(e, null);
+                if (tl == null)
+                    hd = p;
+                else {
+                    p.prev = tl;
+                    tl.next = p;
+                }
+                tl = p;
+            } while ((e = e.next) != null);
+            if ((tab[index] = hd) != null)
+                hd.treeify(tab);
+        }
+    }
+    ```
+    - 该方法一共分为两个部分：
+    	- 判断哈希桶数组是否为null，如果为null就扩容，判断hash在对应哈希桶中是否为null，如果为null直接结束
+    	- 将Node构成的单项链表转换为TreeNode构成的双向链表。如果双向链表的头结点不为null，就用头结点调用TreeNode的树化方法
+
+- `void afterNodeAccess(Node<K,V> p) { }`，为LinkedHashMap准备的回调方法
+- `void afterNodeInsertion(boolean evict) { }`，为LinkedHashMap准备的回调方法
+- `void afterNodeRemoval(Node<K,V> p) { }`，为LinkedHashMap准备的回调方法
+
 - `Node<K,V> replacementNode(Node<K,V> p, Node<K,V> next)`，将TreeNode树节点转换为普通的Node节点。该方法仅在TreeNode的untreeify()方法中被调用。
 	- 源码如下：
 	```java
@@ -311,14 +890,200 @@ tags: Java基础
     }
     ```
 
+- `Node<K,V> newNode(int hash, K key, V value, Node<K,V> next)`，创建一个非树节点
+	- 源码如下：
+	```java
+    // Node的构造方法见[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
+    Node<K,V> newNode(int hash, K key, V value, Node<K,V> next) {
+        return new Node<>(hash, key, value, next);
+    }
+    ```
 
+- `final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable)`，移除一个节点，matchValue表示只有在值相等的情况下才移除节点。movable表示移除节点后是否需要移动其他节点。
+	- 源码如下：
+	```java
+    final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable) {
+        Node<K,V>[] tab; Node<K,V> p; int n, index;
+        if ((tab = table) != null && (n = tab.length) > 0 && (p = tab[index = (n - 1) & hash]) != null) {
+            Node<K,V> node = null, e; K k; V v;
+            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+                node = p;
+            else if ((e = p.next) != null) {
+                if (p instanceof TreeNode)
+                    node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+                else {
+                    do {
+                        if (e.hash == hash &&
+                            ((k = e.key) == key ||
+                             (key != null && key.equals(k)))) {
+                            node = e;
+                            break;
+                        }
+                        p = e;
+                    } while ((e = e.next) != null);
+                }
+            }
+            if (node != null && (!matchValue || (v = node.value) == value || (value != null && value.equals(v)))) {
+                if (node instanceof TreeNode)
+                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+                else if (node == p)
+                    tab[index] = node.next;
+                else
+                    p.next = node.next;
+                ++modCount;
+                --size;
+                afterNodeRemoval(node);
+                return node;
+            }
+        }
+        return null;
+    }
+    ```
+	- 此方法中分两部分，首先是找到节点，其次是移除节点。
+		- 找到节点，需要在哈希桶中找，哈希桶中没找到就判断哈希桶连接的是红黑树还是链表，如果是红黑树就用树的方法去找到节点，如果是链表就循环去找节点，直到找到节点。
+		- 移除节点，根据参数决定是否需要判断值相等。如果是树节点，就用树的方法去移除节点，如果是哈希桶中的节点就直接将下一个节点放到哈希桶中，如果是链表中的节点，就从链表中去掉它。
 
+- `final Node<K,V> getNode(int hash, Object key)`，根据哈希值和key值去获取一个节点。
+	- 源码如下：
+	```java
+    final Node<K,V> getNode(int hash, Object key) {
+        Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
+        if ((tab = table) != null && (n = tab.length) > 0 &&
+            (first = tab[(n - 1) & hash]) != null) {
+            // always check first node
+            if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
+                return first;
+            if ((e = first.next) != null) {
+                if (first instanceof TreeNode)
+                    return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+                do {
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        return e;
+                } while ((e = e.next) != null);
+            }
+        }
+        return null;
+    }
+    ```
+    - 该方法的思路分为四个部分：
+    	- 哈希桶是否为空，如果为空直接返回null
+    	- 哈希桶中的节点是否为需要的节点，如果是，就直接返回哈希桶中的节点
+    	- 哈希桶中的节点是树节点就用树节点的方式去遍历树，直到找到符合的key和hash
+    	- 哈希桶中的节点不为树节点，就通过普通Node的方式去遍历链表寻找节点
 
+- `final float loadFactor() { return loadFactor; }`，获取负载因子。
+- `final int capacity()`，获取容量
+	- 源码如下：
+	```java
+    final int capacity() {
+        return (table != null) ? table.length : (threshold > 0) ? threshold : DEFAULT_INITIAL_CAPACITY;
+    }
+    ```
 
+- `private void writeObject(java.io.ObjectOutputStream s)`，
+	- 源码如下：
+	```java
+    private void writeObject(java.io.ObjectOutputStream s)
+        throws IOException {
+        int buckets = capacity();
+        // Write out the threshold, loadfactor, and any hidden stuff
+        s.defaultWriteObject();
+        s.writeInt(buckets);
+        s.writeInt(size);
+        internalWriteEntries(s);
+    }
+    ```
 
+- `private void readObject(java.io.ObjectInputStream s)`，从流里面获取数据重建一个HashMap实例。
+	- 源码如下：
+	```java
+    private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
+        // Read in the threshold (ignored), loadfactor, and any hidden stuff
+        s.defaultReadObject();
+        reinitialize();
+        if (loadFactor <= 0 || Float.isNaN(loadFactor))
+            throw new InvalidObjectException("Illegal load factor: " +
+                                             loadFactor);
+        s.readInt();                // Read and ignore number of buckets
+        int mappings = s.readInt(); // Read number of mappings (size)
+        if (mappings < 0)
+            throw new InvalidObjectException("Illegal mappings count: " +
+                                             mappings);
+        else if (mappings > 0) { // (if zero, use defaults)
+            // Size the table using given load factor only if within
+            // range of 0.25...4.0
+            float lf = Math.min(Math.max(0.25f, loadFactor), 4.0f);
+            float fc = (float)mappings / lf + 1.0f;
+            int cap = ((fc < DEFAULT_INITIAL_CAPACITY) ?
+                       DEFAULT_INITIAL_CAPACITY :
+                       (fc >= MAXIMUM_CAPACITY) ?
+                       MAXIMUM_CAPACITY :
+                       tableSizeFor((int)fc));
+            float ft = (float)cap * lf;
+            threshold = ((cap < MAXIMUM_CAPACITY && ft < MAXIMUM_CAPACITY) ?
+                         (int)ft : Integer.MAX_VALUE);
+            @SuppressWarnings({"rawtypes","unchecked"})
+                Node<K,V>[] tab = (Node<K,V>[])new Node[cap];
+            table = tab;
 
+            // Read the keys and values, and put the mappings in the HashMap
+            for (int i = 0; i < mappings; i++) {
+                @SuppressWarnings("unchecked")
+                    K key = (K) s.readObject();
+                @SuppressWarnings("unchecked")
+                    V value = (V) s.readObject();
+                putVal(hash(key), key, value, false, false);
+            }
+        }
+    }
+    ```
 
+- `TreeNode<K,V> newTreeNode(int hash, K key, V value, Node<K,V> next)`，新建一个TreeNode节点。
+	- 源码如下：
+	```java
+    TreeNode<K,V> newTreeNode(int hash, K key, V value, Node<K,V> next) {
+        return new TreeNode<>(hash, key, value, next);
+    }
+    ```
 
+- `TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next)`，将一个Node转换为TreeNode
+	- 源码如下：
+	```java
+    TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
+        return new TreeNode<>(p.hash, p.key, p.value, next);
+    }
+    ```
+
+- `void reinitialize()`，重新初始化HashMap，该方法在clone(),readObject()方法中被调用。
+	- 源码如下：
+	```java
+    void reinitialize() {
+        table = null;
+        entrySet = null;
+        keySet = null;
+        values = null;
+        modCount = 0;
+        threshold = 0;
+        size = 0;
+    }
+    ```
+
+- `void internalWriteEntries(java.io.ObjectOutputStream s)`
+	- 源码如下：
+	```java
+    void internalWriteEntries(java.io.ObjectOutputStream s) throws IOException {
+        Node<K,V>[] tab;
+        if (size > 0 && (tab = table) != null) {
+            for (int i = 0; i < tab.length; ++i) {
+                for (Node<K,V> e = tab[i]; e != null; e = e.next) {
+                    s.writeObject(e.key);
+                    s.writeObject(e.value);
+                }
+            }
+        }
+    }
+    ```
 
 ### 扩展
 1. 如何将哈希桶中的元素一分为二？

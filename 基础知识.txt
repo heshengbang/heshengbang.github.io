@@ -24,6 +24,7 @@
 - 事务，事务隔离性，索引（B+树，为什么是B+树）
 - Hibernate 原理
 - mybatis 原理
+- redis
 - redis setnx
 - Bean的生命周期 #
 - Spring的循环引用 #
