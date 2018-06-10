@@ -127,7 +127,19 @@ public interface Condition {
 - 方法
 	- `void await() throws InterruptedException;`造成当前线程在接到信号或被中断之前一直处于等待状态。
 	- `void awaitUninterruptibly();`造成当前线程在接到信号、被中断或到达指定等待时间之前一直处于等待状态。
-	- `long awaitNanos(long nanosTimeout) throws InterruptedException;`造成当前线程在接到信号、被中断或到达指定等待时间之前一直处于等待状态。
+	- `long awaitNanos(long nanosTimeout) throws InterruptedException;`造成当前线程在接到信号、被中断或到达指定等待时间之前一直处于等待状态。此方法的典型用法采用以下形式:
+	```java
+	synchronized boolean example(long timeout, TimeUnit unit) {
+            long nanosTimeout = unit.toNanos(timeout);
+            while (!conditionBeingWaitedFor) {
+                if (nanosTimeout > 0)
+                    nanosTimeout = theCondition.awaitNanos(nanosTimeout);
+                else
+                    return false;
+            }
+            // ...
+	}
+    ```
 	- `boolean await(long time, TimeUnit unit) throws InterruptedException;`造成当前线程在接到信号之前一直处于等待状态。
 	- `boolean awaitUntil(Date deadline) throws InterruptedException;`造成当前线程在接到信号、被中断或到达指定最后期限之前一直处于等待状态。
 	- `void signal();`如果所有的线程都在等待此条件，则选择其中的一个唤醒。在从 await 返回之前，该线程必须重新获取锁。
