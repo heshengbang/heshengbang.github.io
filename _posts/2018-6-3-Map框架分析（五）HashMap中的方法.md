@@ -136,7 +136,7 @@ tags: Java基础
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
     ```
-    - 说明：
+    - 说明:
     	- 如果传入的对象为null，则哈希值为0，这解释了为什么HashMap中只能有一个null作为键值
     	- 如果传入的对象不为null，就获取到其哈希值，因为哈希值是int所以是4字节*8位，一共32位。哈希值向右移16位，用高16位和低16位做异或运算，得到最终的哈希值。
 
@@ -170,7 +170,7 @@ tags: Java基础
     		- ParameterizedType#getRawType：获取实际声明的类型对象
     		- ParameterizedType#getActualTypeArguments：获取实际作为泛型参数的类型，返回值是一个数组对象
     	- Class#getGenericInterfaces：获取该类直接实现的接口
-    - 代码逻辑：
+    - 代码逻辑:
     	1. 判断参数x是否实现了Comparable接口，如果没有，则直接返回null
     	2. 在x实现了Comparable接口的情况下，继续判断下一步骤
     	3. 参数x是否是String类型的，如果是，则直接返回String.class
@@ -189,7 +189,7 @@ tags: Java基础
         return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
     }
     ```
-    - 基本逻辑：
+    - 基本逻辑:
     	1. 如果参数x为null，则返回0（这并不表示两个对象相等）
     	2. 如果x不为null，但是x的类型不等于传入的参数kc，则返回0（这并不表示两个对象相等）
     	3. 如果x不为null，同时x的类型等于传入的参数kc，则用类型kc中实现的Comparable接口方法比较对象的大小，并返回结果
@@ -774,7 +774,7 @@ tags: Java基础
         return newTab;
     }
     ```
-    - 步骤：
+    - 步骤:
     	- 根据旧哈希桶数组的大小和扩容阈值加倍获取到新的哈希桶数组大小和阈值。如果旧容量等于0，则使用旧阈值为新的哈希桶数组容量，如果旧阈值也小于等于0，则使用默认的哈希桶数组大小和阈值。
     	- 根据新的哈希桶数组容量创建新的哈希桶数组
     	- 循环遍历旧的哈希桶数组，判断每一个元素是否为null
@@ -786,7 +786,7 @@ tags: Java基础
                 	- 如果不为树节点，则为链表结构，将以该节点为头结点的链表拆分为两个子链表分别放入新的哈希桶数组的对应位置
 	- 该方法主要包含两个部分，构建新的哈希桶数组，将旧哈希桶中的数据移动到新的哈希桶数组中
 		- 构建新的哈希桶数组：获取新哈希桶的大小，新的扩容阈值
-		- 移动数据：
+		- 移动数据:
 			- 遍历旧哈希桶数组的每个哈希桶
 			- 判断其是否没有下一个节点，如果没有下一个节点就根据其hash值和新的哈希桶数组的大小求其新的索引，将其放入
 			- 如果哈希桶中的节点有下一个节点，就判断其是否为树节点，如果是树节点就将拆分红黑树，将所有节点放入新的哈希桶数组中
@@ -796,53 +796,53 @@ tags: Java基础
 	- 源码如下：
 	```java
     final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
-        Node<K,V>[] tab; Node<K,V> p; int n, i;
-        // 如果哈希桶数组为null，则扩容，并获取扩容后的长度
-        if ((tab = table) == null || (n = tab.length) == 0)
-            n = (tab = resize()).length;
-        // 如果根据哈希找到在哈希桶数组的索引，如果为null，则直接新建node
-        if ((p = tab[i = (n - 1) & hash]) == null)
-            tab[i] = newNode(hash, key, value, null);
-        // 如果索引所在节点不为null
-        else {
-            Node<K,V> e; K k;
-            // 如果传入的hash值和哈希桶中的哈希值相同，并且key值也相同，获取当前哈希桶中的节点引用
-            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
-                e = p;
-            // 如果hash和key不相等，但哈希桶中的节点是树节点
-            else if (p instanceof TreeNode)
-            	// 调用HashMap.TreeNode的putTreeVal方法
-                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            Node<K,V>[] tab; Node<K,V> p; int n, i;
+            // 如果哈希桶数组为null，则扩容，并获取扩容后的长度
+            if ((tab = table) == null || (n = tab.length) == 0)
+                n = (tab = resize()).length;
+            // 如果根据哈希找到在哈希桶数组的索引，如果为null，则直接新建node
+            if ((p = tab[i = (n - 1) & hash]) == null)
+                tab[i] = newNode(hash, key, value, null);
+            // 如果索引所在节点不为null
             else {
-                for (int binCount = 0; ; ++binCount) {
-                    if ((e = p.next) == null) {
-                        p.next = newNode(hash, key, value, null);
-                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
-                            treeifyBin(tab, hash);
-                        break;
+                Node<K,V> e; K k;
+                // 如果传入的hash值和哈希桶中的哈希值相同，并且key值也相同，获取当前哈希桶中的节点引用
+                if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+                    e = p;
+                // 如果hash和key不相等，但哈希桶中的节点是树节点
+                else if (p instanceof TreeNode)
+                    // 调用HashMap.TreeNode的putTreeVal方法
+                    e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+                else {
+                    for (int binCount = 0; ; ++binCount) {
+                        if ((e = p.next) == null) {
+                            p.next = newNode(hash, key, value, null);
+                            if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                                treeifyBin(tab, hash);
+                            break;
+                        }
+                        if (e.hash == hash &&
+                            ((k = e.key) == key || (key != null && key.equals(k))))
+                            break;
+                        p = e;
                     }
-                    if (e.hash == hash &&
-                        ((k = e.key) == key || (key != null && key.equals(k))))
-                        break;
-                    p = e;
+                }
+                if (e != null) { // existing mapping for key
+                    V oldValue = e.value;
+                    if (!onlyIfAbsent || oldValue == null)
+                        e.value = value;
+                    afterNodeAccess(e);
+                    return oldValue;
                 }
             }
-            if (e != null) { // existing mapping for key
-                V oldValue = e.value;
-                if (!onlyIfAbsent || oldValue == null)
-                    e.value = value;
-                afterNodeAccess(e);
-                return oldValue;
-            }
-        }
-        ++modCount;
-        if (++size > threshold)
-            resize();
-        afterNodeInsertion(evict);
-        return null;
+            ++modCount;
+            if (++size > threshold)
+                resize();
+            afterNodeInsertion(evict);
+            return null;
     }
     ```
-    - putVal()基本上包含六个步骤：
+    - putVal()基本上包含六个步骤:
     	- 判断哈希桶数组是否为空，如果为空则扩容
     	- 根据hash计算在哈希桶数组中的位置，判断索引对应的哈希桶是否为null，如果为null，则直接创建新节点并插入
     	- 判断索引对应的哈希桶key和hash是否等于插入节点的值，如果相等则将根据onlyIfAbsent决定是否将新值放入，返回旧的value
@@ -854,27 +854,27 @@ tags: Java基础
 	- 源码如下：
 	```java
     final void treeifyBin(Node<K,V>[] tab, int hash) {
-        int n, index; Node<K,V> e;
-        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
-            resize();
-        else if ((e = tab[index = (n - 1) & hash]) != null) {
-            TreeNode<K,V> hd = null, tl = null;
-            do {
-                TreeNode<K,V> p = replacementTreeNode(e, null);
-                if (tl == null)
-                    hd = p;
-                else {
-                    p.prev = tl;
-                    tl.next = p;
-                }
-                tl = p;
-            } while ((e = e.next) != null);
-            if ((tab[index] = hd) != null)
-                hd.treeify(tab);
-        }
+            int n, index; Node<K,V> e;
+            if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+                resize();
+            else if ((e = tab[index = (n - 1) & hash]) != null) {
+                TreeNode<K,V> hd = null, tl = null;
+                do {
+                    TreeNode<K,V> p = replacementTreeNode(e, null);
+                    if (tl == null)
+                        hd = p;
+                    else {
+                        p.prev = tl;
+                        tl.next = p;
+                    }
+                    tl = p;
+                } while ((e = e.next) != null);
+                if ((tab[index] = hd) != null)
+                    hd.treeify(tab);
+            }
     }
     ```
-    - 该方法一共分为两个部分：
+    - 该方法一共分为两个部分:
     	- 判断哈希桶数组是否为null，如果为null就扩容，判断hash在对应哈希桶中是否为null，如果为null直接结束
     	- 将Node构成的单项链表转换为TreeNode构成的双向链表。如果双向链表的头结点不为null，就用头结点调用TreeNode的树化方法
 
@@ -886,7 +886,7 @@ tags: Java基础
 	- 源码如下：
 	```java
     Node<K,V> replacementNode(Node<K,V> p, Node<K,V> next) {
-        return new Node<>(p.hash, p.key, p.value, next);
+        	return new Node<>(p.hash, p.key, p.value, next);
     }
     ```
 
@@ -895,7 +895,7 @@ tags: Java基础
 	```java
     // Node的构造方法见[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
     Node<K,V> newNode(int hash, K key, V value, Node<K,V> next) {
-        return new Node<>(hash, key, value, next);
+        	return new Node<>(hash, key, value, next);
     }
     ```
 
@@ -903,40 +903,40 @@ tags: Java基础
 	- 源码如下：
 	```java
     final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable) {
-        Node<K,V>[] tab; Node<K,V> p; int n, index;
-        if ((tab = table) != null && (n = tab.length) > 0 && (p = tab[index = (n - 1) & hash]) != null) {
-            Node<K,V> node = null, e; K k; V v;
-            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
-                node = p;
-            else if ((e = p.next) != null) {
-                if (p instanceof TreeNode)
-                    node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
-                else {
-                    do {
-                        if (e.hash == hash &&
-                            ((k = e.key) == key ||
-                             (key != null && key.equals(k)))) {
-                            node = e;
-                            break;
-                        }
-                        p = e;
-                    } while ((e = e.next) != null);
+            Node<K,V>[] tab; Node<K,V> p; int n, index;
+            if ((tab = table) != null && (n = tab.length) > 0 && (p = tab[index = (n - 1) & hash]) != null) {
+                Node<K,V> node = null, e; K k; V v;
+                if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+                    node = p;
+                else if ((e = p.next) != null) {
+                    if (p instanceof TreeNode)
+                        node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+                    else {
+                        do {
+                            if (e.hash == hash &&
+                                ((k = e.key) == key ||
+                                 (key != null && key.equals(k)))) {
+                                node = e;
+                                break;
+                            }
+                            p = e;
+                        } while ((e = e.next) != null);
+                    }
+                }
+                if (node != null && (!matchValue || (v = node.value) == value || (value != null && value.equals(v)))) {
+                    if (node instanceof TreeNode)
+                        ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+                    else if (node == p)
+                        tab[index] = node.next;
+                    else
+                        p.next = node.next;
+                    ++modCount;
+                    --size;
+                    afterNodeRemoval(node);
+                    return node;
                 }
             }
-            if (node != null && (!matchValue || (v = node.value) == value || (value != null && value.equals(v)))) {
-                if (node instanceof TreeNode)
-                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
-                else if (node == p)
-                    tab[index] = node.next;
-                else
-                    p.next = node.next;
-                ++modCount;
-                --size;
-                afterNodeRemoval(node);
-                return node;
-            }
-        }
-        return null;
+            return null;
     }
     ```
 	- 此方法中分两部分，首先是找到节点，其次是移除节点。
@@ -947,51 +947,50 @@ tags: Java基础
 	- 源码如下：
 	```java
     final Node<K,V> getNode(int hash, Object key) {
-        Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
-        if ((tab = table) != null && (n = tab.length) > 0 &&
-            (first = tab[(n - 1) & hash]) != null) {
-            // always check first node
-            if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
-                return first;
-            if ((e = first.next) != null) {
-                if (first instanceof TreeNode)
-                    return ((TreeNode<K,V>)first).getTreeNode(hash, key);
-                do {
-                    if (e.hash == hash &&
-                        ((k = e.key) == key || (key != null && key.equals(k))))
-                        return e;
-                } while ((e = e.next) != null);
+            Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
+            if ((tab = table) != null && (n = tab.length) > 0 &&
+                (first = tab[(n - 1) & hash]) != null) {
+                // always check first node
+                if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
+                    return first;
+                if ((e = first.next) != null) {
+                    if (first instanceof TreeNode)
+                        return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+                    do {
+                        if (e.hash == hash &&
+                            ((k = e.key) == key || (key != null && key.equals(k))))
+                            return e;
+                    } while ((e = e.next) != null);
+                }
             }
-        }
-        return null;
+            return null;
     }
     ```
-    - 该方法的思路分为四个部分：
-    	- 哈希桶是否为空，如果为空直接返回null
-    	- 哈希桶中的节点是否为需要的节点，如果是，就直接返回哈希桶中的节点
-    	- 哈希桶中的节点是树节点就用树节点的方式去遍历树，直到找到符合的key和hash
-    	- 哈希桶中的节点不为树节点，就通过普通Node的方式去遍历链表寻找节点
+    - 该方法的思路分为四个部分:
+		- 哈希桶是否为空，如果为空直接返回null
+		- 哈希桶中的节点是否为需要的节点，如果是，就直接返回哈希桶中的节点
+		- 哈希桶中的节点是树节点就用树节点的方式去遍历树，直到找到符合的key和hash
+		- 哈希桶中的节点不为树节点，就通过普通Node的方式去遍历链表寻找节点
 
 - `final float loadFactor() { return loadFactor; }`，获取负载因子。
 - `final int capacity()`，获取容量
 	- 源码如下：
 	```java
     final int capacity() {
-        return (table != null) ? table.length : (threshold > 0) ? threshold : DEFAULT_INITIAL_CAPACITY;
+        	return (table != null) ? table.length : (threshold > 0) ? threshold : DEFAULT_INITIAL_CAPACITY;
     }
     ```
 
 - `private void writeObject(java.io.ObjectOutputStream s)`，
 	- 源码如下：
 	```java
-    private void writeObject(java.io.ObjectOutputStream s)
-        throws IOException {
-        int buckets = capacity();
-        // Write out the threshold, loadfactor, and any hidden stuff
-        s.defaultWriteObject();
-        s.writeInt(buckets);
-        s.writeInt(size);
-        internalWriteEntries(s);
+    private void writeObject(java.io.ObjectOutputStream s) throws IOException {
+            int buckets = capacity();
+            // Write out the threshold, loadfactor, and any hidden stuff
+            s.defaultWriteObject();
+            s.writeInt(buckets);
+            s.writeInt(size);
+            internalWriteEntries(s);
     }
     ```
 
@@ -999,43 +998,43 @@ tags: Java基础
 	- 源码如下：
 	```java
     private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
-        // Read in the threshold (ignored), loadfactor, and any hidden stuff
-        s.defaultReadObject();
-        reinitialize();
-        if (loadFactor <= 0 || Float.isNaN(loadFactor))
-            throw new InvalidObjectException("Illegal load factor: " +
-                                             loadFactor);
-        s.readInt();                // Read and ignore number of buckets
-        int mappings = s.readInt(); // Read number of mappings (size)
-        if (mappings < 0)
-            throw new InvalidObjectException("Illegal mappings count: " +
-                                             mappings);
-        else if (mappings > 0) { // (if zero, use defaults)
-            // Size the table using given load factor only if within
-            // range of 0.25...4.0
-            float lf = Math.min(Math.max(0.25f, loadFactor), 4.0f);
-            float fc = (float)mappings / lf + 1.0f;
-            int cap = ((fc < DEFAULT_INITIAL_CAPACITY) ?
-                       DEFAULT_INITIAL_CAPACITY :
-                       (fc >= MAXIMUM_CAPACITY) ?
-                       MAXIMUM_CAPACITY :
-                       tableSizeFor((int)fc));
-            float ft = (float)cap * lf;
-            threshold = ((cap < MAXIMUM_CAPACITY && ft < MAXIMUM_CAPACITY) ?
-                         (int)ft : Integer.MAX_VALUE);
-            @SuppressWarnings({"rawtypes","unchecked"})
-                Node<K,V>[] tab = (Node<K,V>[])new Node[cap];
-            table = tab;
+            // Read in the threshold (ignored), loadfactor, and any hidden stuff
+            s.defaultReadObject();
+            reinitialize();
+            if (loadFactor <= 0 || Float.isNaN(loadFactor))
+                throw new InvalidObjectException("Illegal load factor: " +
+                                                 loadFactor);
+            s.readInt();                // Read and ignore number of buckets
+            int mappings = s.readInt(); // Read number of mappings (size)
+            if (mappings < 0)
+                throw new InvalidObjectException("Illegal mappings count: " +
+                                                 mappings);
+            else if (mappings > 0) { // (if zero, use defaults)
+                // Size the table using given load factor only if within
+                // range of 0.25...4.0
+                float lf = Math.min(Math.max(0.25f, loadFactor), 4.0f);
+                float fc = (float)mappings / lf + 1.0f;
+                int cap = ((fc < DEFAULT_INITIAL_CAPACITY) ?
+                           DEFAULT_INITIAL_CAPACITY :
+                           (fc >= MAXIMUM_CAPACITY) ?
+                           MAXIMUM_CAPACITY :
+                           tableSizeFor((int)fc));
+                float ft = (float)cap * lf;
+                threshold = ((cap < MAXIMUM_CAPACITY && ft < MAXIMUM_CAPACITY) ?
+                             (int)ft : Integer.MAX_VALUE);
+                @SuppressWarnings({"rawtypes","unchecked"})
+                    Node<K,V>[] tab = (Node<K,V>[])new Node[cap];
+                table = tab;
 
-            // Read the keys and values, and put the mappings in the HashMap
-            for (int i = 0; i < mappings; i++) {
-                @SuppressWarnings("unchecked")
-                    K key = (K) s.readObject();
-                @SuppressWarnings("unchecked")
-                    V value = (V) s.readObject();
-                putVal(hash(key), key, value, false, false);
+                // Read the keys and values, and put the mappings in the HashMap
+                for (int i = 0; i < mappings; i++) {
+                    @SuppressWarnings("unchecked")
+                        K key = (K) s.readObject();
+                    @SuppressWarnings("unchecked")
+                        V value = (V) s.readObject();
+                    putVal(hash(key), key, value, false, false);
+                }
             }
-        }
     }
     ```
 
@@ -1043,7 +1042,7 @@ tags: Java基础
 	- 源码如下：
 	```java
     TreeNode<K,V> newTreeNode(int hash, K key, V value, Node<K,V> next) {
-        return new TreeNode<>(hash, key, value, next);
+        	return new TreeNode<>(hash, key, value, next);
     }
     ```
 
@@ -1051,7 +1050,7 @@ tags: Java基础
 	- 源码如下：
 	```java
     TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
-        return new TreeNode<>(p.hash, p.key, p.value, next);
+        	return new TreeNode<>(p.hash, p.key, p.value, next);
     }
     ```
 
@@ -1059,13 +1058,13 @@ tags: Java基础
 	- 源码如下：
 	```java
     void reinitialize() {
-        table = null;
-        entrySet = null;
-        keySet = null;
-        values = null;
-        modCount = 0;
-        threshold = 0;
-        size = 0;
+            table = null;
+            entrySet = null;
+            keySet = null;
+            values = null;
+            modCount = 0;
+            threshold = 0;
+            size = 0;
     }
     ```
 
@@ -1073,15 +1072,15 @@ tags: Java基础
 	- 源码如下：
 	```java
     void internalWriteEntries(java.io.ObjectOutputStream s) throws IOException {
-        Node<K,V>[] tab;
-        if (size > 0 && (tab = table) != null) {
-            for (int i = 0; i < tab.length; ++i) {
-                for (Node<K,V> e = tab[i]; e != null; e = e.next) {
-                    s.writeObject(e.key);
-                    s.writeObject(e.value);
+            Node<K,V>[] tab;
+            if (size > 0 && (tab = table) != null) {
+                for (int i = 0; i < tab.length; ++i) {
+                    for (Node<K,V> e = tab[i]; e != null; e = e.next) {
+                        s.writeObject(e.key);
+                        s.writeObject(e.value);
+                    }
                 }
             }
-        }
     }
     ```
 
@@ -1105,4 +1104,5 @@ tags: Java基础
             }
         }
     ```
-    - 具体的原因在于capacity总是2的幂次方，例如8，16，32之类的，它们-1之后，的二进制表示分别是111,1111,11111，任意一个数字同这些数字进行&操作，都是求模运算。对于任意数字，比capacity多的位，不管是什么，capacity都填充为0，因此&操作总能得出0，capacity具备的位数，不管你是什么，&操作之后，你该是什么还是什么，以此达到求模运算的目的。在上一步骤求出一堆模数相同的数字，8,16,32的二进制是1000,10000,10000，它有且仅有一个数字为1，其他位数皆为0。对于任意数字，对上那些为0的位数的时候，不管你是什么，&总会返回0，而对上那个为1的位数，不管你是什么，&总会得出你本来的数字。那些模数相同的数字，它们因此会被区分为两部分。
+    - 具体的原因在于capacity总是2的幂次方，例如8，16，32之类的，它们-1之后，的二进制表示分别是111,1111,11111，任意一个数字同这些数字进行&操作，都是求模运算。对于任意数字：①比capacity多的位，不管是什么，capacity都填充为0，因此&操作总能得出0 ②capacity具备的位数，不管你是什么，&操作之后，你该是什么还是什么，以此达到求模运算的目的。
+    - 在上一步骤求出一堆模数相同的数字，8,16,32的二进制是1000,10000,10000，它有且仅有一个数字为1，其他位数皆为0。对于任意数字，对上那些为0的位数的时候，不管你是什么，&总会返回0，而对上那个为1的位数，不管你是什么，&总会得出你本来的数字。那些模数相同的数字，它们因此会被区分为两部分。
