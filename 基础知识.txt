@@ -1,40 +1,40 @@
 ﻿- HashMap #
 - 红黑树
-- ConcurrentHashMap #
-- synchronize #
-- volatile #
-- lock #
+- ConcurrentHashMap
+- synchronize
+- volatile
+- lock
 - Condition
-- ReentrantLock #
+- ReentrantLock
 - ArrayBlockingQueue
-- LinkedBlockingQueue #
-- ThreadLocal #
-- IO #
+- LinkedBlockingQueue
+- ThreadLocal
+- IO
 - NIO
-- 线程状态 #
-- ThreadPool #
-- JVM类加载 #
-- JVM GC算法 #
-- JVM GC器 #
-- JVM内存结构#
+- 线程状态
+- ThreadPool
+- JVM类加载
+- JVM GC算法
+- JVM GC器
+- JVM内存结构
 - Java 内存模型
 - JVM Old GC 查错
 - B+树
-- 高性能mysql，数据库数据是怎么存储的，最左匹配原则 #
+- 高性能mysql，数据库数据是怎么存储的，最左匹配原则
 - 事务，事务隔离性，索引（B+树，为什么是B+树）
 - Hibernate 原理
 - mybatis 原理
 - redis
 - redis setnx
-- Bean的生命周期 #
-- Spring的循环引用 #
-- BeanFactory和FactoryBean #
-- Spring MVC原理 #
-- Spring AOP #
-- RPC的原理 #
-- MQ的原理 #
+- Bean的生命周期
+- Spring的循环引用
+- BeanFactory和FactoryBean
+- Spring MVC原理
+- Spring AOP
+- RPC的原理
+- MQ的原理
 - Hadoop原理
-- Zookeeper的原理 #
+- Zookeeper的原理
 - 数据一致性算法（https://blog.csdn.net/u010039929/article/details/70171672）
 - leafID生成原理
 - 现在的项目架构
