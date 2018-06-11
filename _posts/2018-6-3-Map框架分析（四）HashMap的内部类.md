@@ -10,7 +10,7 @@ tags: Java基础
 
 ---
 
-本文基于JDK 1.8。在阅读源码的过程中，发现自己很多地方不能自洽，应该是对源码的理解有很大问题，本文自做记录不作参考，切勿以本文作参考！
+本文基于JDK 1.8。
 
 ### 相关知识点
 - [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
@@ -21,7 +21,7 @@ tags: Java基础
 	- 方法
 - HashMap
 	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析（九）HashMap的内部类TreeNode/)
+		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
 		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
 		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
@@ -30,7 +30,7 @@ tags: Java基础
             - [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
 
 ### 简述
-- HashMap中一共有15个内部类，其中13个是自己独有的，另外2个是继承自AbstractMap。它们的关系如下图所示（红线）：
+- HashMap中一共有15个内部类，其中13个是自己独有的，另外2个是继承自AbstractMap。它们的关系如下图所示（红线）
 ![HashMap中的内部类](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/HashMap源码分析/HashMap_InnerClass.png)
 	- 继承自Abstract的内部类在HashMap中并未直接使用到，个人感觉是作为一种继承AbstractMap的默认方法实现时的一种附属产品，也可能是作为一种潜在的拓展。
 		- [SimpleEntry，前文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
@@ -50,6 +50,7 @@ tags: Java基础
 		- Values：HashMap中的value的集合
 		- KeySet：HashMap中的key的集合
 		- EntrySet：HashMap中的Entry的集合
+
 
 - 通过HashMap的内部类的结构就非常清晰了。分别是继承自AbstractMap的SimpleEntry和SimpleImmutableEntry，HashMap自己定义的13个内部类大致分成四部分，分别是用作链表节点的Node及其子类用作红黑树节点的TreeNode，集合迭代器HashIterator及其子类KeyIterator、ValueIterator、EntryIterator，并行迭代器HashMapSpliterator及其子类KeySpliterator、ValueSpliterator、EntrySpliterator，Key的集合、value的集合、Entry的集合。
 
@@ -110,6 +111,7 @@ tags: Java基础
     }
 ```
 	- 如上源码所示，HashMap.Node中值得关注的只有一个点，即Node求hashcode的方法。调用Objects的方法获取key和value的hash值，然后进行异或运算。事实上，Objects类中的工具类，hashCode()其实也是调用对象本身的Native hashCode()方法去获取hashCode。
+
 
 - [TreeNode，后文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 
@@ -324,14 +326,12 @@ static final class ValueSpliterator<K,V>
                          int expectedModCount) {
             super(m, origin, fence, est, expectedModCount);
         }
-
         public ValueSpliterator<K,V> trySplit() {
             int hi = getFence(), lo = index, mid = (lo + hi) >>> 1;
             return (lo >= mid || current != null) ? null :
                 new ValueSpliterator<>(map, lo, index = mid, est >>>= 1,
                                           expectedModCount);
         }
-
         public void forEachRemaining(Consumer<? super V> action) {
             int i, hi, mc;
             if (action == null)
@@ -360,7 +360,6 @@ static final class ValueSpliterator<K,V>
                     throw new ConcurrentModificationException();
             }
         }
-
         public boolean tryAdvance(Consumer<? super V> action) {
             int hi;
             if (action == null)
@@ -382,7 +381,6 @@ static final class ValueSpliterator<K,V>
             }
             return false;
         }
-
         public int characteristics() {
             return (fence < 0 || est == map.size ? Spliterator.SIZED : 0);
         }
@@ -400,14 +398,12 @@ static final class EntrySpliterator<K,V>
                          int expectedModCount) {
             super(m, origin, fence, est, expectedModCount);
         }
-
         public EntrySpliterator<K,V> trySplit() {
             int hi = getFence(), lo = index, mid = (lo + hi) >>> 1;
             return (lo >= mid || current != null) ? null :
                 new EntrySpliterator<>(map, lo, index = mid, est >>>= 1,
                                           expectedModCount);
         }
-
         public void forEachRemaining(Consumer<? super Map.Entry<K,V>> action) {
             int i, hi, mc;
             if (action == null)
@@ -458,7 +454,6 @@ static final class EntrySpliterator<K,V>
             }
             return false;
         }
-
         public int characteristics() {
             return (fence < 0 || est == map.size ? Spliterator.SIZED : 0) |
                 Spliterator.DISTINCT;
@@ -469,10 +464,18 @@ static final class EntrySpliterator<K,V>
 - KeySet源码及注释如下：
 ```java
 final class KeySet extends AbstractSet<K> {
-        public final int size()                 { return size; }
-        public final void clear()               { HashMap.this.clear(); }
-        public final Iterator<K> iterator()     { return new KeyIterator(); }
-        public final boolean contains(Object o) { return containsKey(o); }
+        public final int size() {
+        	return size;
+        }
+        public final void clear() {
+        	HashMap.this.clear();
+        }
+        public final Iterator<K> iterator() {
+        	return new KeyIterator();
+        }
+        public final boolean contains(Object o) {
+        	return containsKey(o);
+        }
         public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
@@ -499,10 +502,18 @@ final class KeySet extends AbstractSet<K> {
 - Values的源码及注释如下：
 ```java
     final class Values extends AbstractCollection<V> {
-        public final int size()                 { return size; }
-        public final void clear()               { HashMap.this.clear(); }
-        public final Iterator<V> iterator()     { return new ValueIterator(); }
-        public final boolean contains(Object o) { return containsValue(o); }
+        public final int size() {
+        	return size;
+        }
+        public final void clear() {
+        	HashMap.this.clear();
+        }
+        public final Iterator<V> iterator() {
+        	return new ValueIterator();
+        }
+        public final boolean contains(Object o) {
+        	return containsValue(o);
+        }
         public final Spliterator<V> spliterator() {
             return new ValueSpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
@@ -526,8 +537,12 @@ final class KeySet extends AbstractSet<K> {
 - EntrySet的源码及注释如下：
 ```java
     final class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        public final int size()                 { return size; }
-        public final void clear()               { HashMap.this.clear(); }
+        public final int size() {
+        	return size;
+        }
+        public final void clear() {
+        	HashMap.this.clear();
+        }
         public final Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }

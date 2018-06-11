@@ -22,7 +22,7 @@ tags: Java基础
 	- 方法
 - HashMap
 	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析（九）HashMap的内部类TreeNode/)
+		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
 		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
 		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)

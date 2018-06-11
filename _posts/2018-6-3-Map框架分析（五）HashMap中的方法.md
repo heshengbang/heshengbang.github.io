@@ -29,33 +29,19 @@ tags: Java基础
 ### 相关知识点
 
 - [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
-
 	- 内部接口
-
 	- 方法
-
 - [AbstractMap](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
-
 	- 内部类
-
 	- 方法
-
 - HashMap
-
 	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析（九）HashMap的内部类TreeNode/)
-
+		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
-
 		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
-
 		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
-
             - [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
-
             - [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
-
             - [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
 
 
@@ -65,16 +51,16 @@ tags: Java基础
 	- 源码如下：
 	```java
     public HashMap(int initialCapacity, float loadFactor) {
-        if (initialCapacity < 0)
-            throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
-        // MAXIMUM_CAPACITY 在HashMap的成员变量部分有提到，是2的30次方
-        if (initialCapacity > MAXIMUM_CAPACITY)
-            initialCapacity = MAXIMUM_CAPACITY;
-        if (loadFactor <= 0 || Float.isNaN(loadFactor))
-            throw new IllegalArgumentException("Illegal load factor: " + loadFactor);
-        this.loadFactor = loadFactor;
-        // 根据容量计算扩容的阈值
-        this.threshold = tableSizeFor(initialCapacity);
+            if (initialCapacity < 0)
+                throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
+            // MAXIMUM_CAPACITY 在HashMap的成员变量部分有提到，是2的30次方
+            if (initialCapacity > MAXIMUM_CAPACITY)
+                initialCapacity = MAXIMUM_CAPACITY;
+            if (loadFactor <= 0 || Float.isNaN(loadFactor))
+                throw new IllegalArgumentException("Illegal load factor: " + loadFactor);
+            this.loadFactor = loadFactor;
+            // 根据容量计算扩容的阈值
+            this.threshold = tableSizeFor(initialCapacity);
     }
     ```
 
@@ -82,8 +68,8 @@ tags: Java基础
 	- 源码如下：
 	```java
     public HashMap(int initialCapacity) {
-    	// DEFAULT_LOAD_FACTOR在HashMap的成员变量部分有提到，默认值是0.75
-        this(initialCapacity, DEFAULT_LOAD_FACTOR);
+            // DEFAULT_LOAD_FACTOR在HashMap的成员变量部分有提到，默认值是0.75
+            this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
     ```
 
@@ -91,8 +77,8 @@ tags: Java基础
 	- 源码如下：
 	```java
     public HashMap() {
-    	// 所有成员变量介使用默认值
-        this.loadFactor = DEFAULT_LOAD_FACTOR;
+            // 所有成员变量介使用默认值
+            this.loadFactor = DEFAULT_LOAD_FACTOR;
     }
     ```
 
@@ -100,9 +86,9 @@ tags: Java基础
 	- 源码如下：
 	```java
     public HashMap(Map<? extends K, ? extends V> m) {
-    	// 使用默认负载因子
-        this.loadFactor = DEFAULT_LOAD_FACTOR;
-        putMapEntries(m, false);
+            // 使用默认负载因子
+            this.loadFactor = DEFAULT_LOAD_FACTOR;
+            putMapEntries(m, false);
     }
     ```
 
@@ -127,8 +113,8 @@ tags: Java基础
 	- 源码如下：
 	```java
     static final int hash(Object key) {
-        int h;
-        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+            int h;
+            return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
     ```
     - 说明:
@@ -178,7 +164,7 @@ tags: Java基础
 	- 源码如下：
 	```java
     static int compareComparables(Class<?> kc, Object k, Object x) {
-        return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
+        	return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
     }
     ```
     - 上面的代码拆分为三部分进行分析
@@ -1102,5 +1088,31 @@ tags: Java基础
             }
         }
     ```
-    - 具体的原因在于capacity总是2的幂次方，例如8，16，32之类的，它们-1之后，的二进制表示分别是111,1111,11111，任意一个数字同这些数字进行&操作，都是求模运算。对于任意数字：①比capacity多的位，不管是什么，capacity都填充为0，因此&操作总能得出0 ②capacity具备的位数，不管你是什么，&操作之后，你该是什么还是什么，以此达到求模运算的目的。
-    - 在上一步骤求出一堆模数相同的数字，8,16,32的二进制是1000,10000,10000，它有且仅有一个数字为1，其他位数皆为0。对于任意数字，对上那些为0的位数的时候，不管你是什么，&总会返回0，而对上那个为1的位数，不管你是什么，&总会得出你本来的数字。那些模数相同的数字，它们因此会被区分为两部分。
+    - 具体的原因在于capacity总是2的幂次方，例如8，16，32之类的，它们-1之后，的二进制表示分别是111,1111,11111，任意一个数字同这些数字进行&操作，都是求模运算。对于任意数字：①比capacity多的位，不管是什么，capacity都填充为0，因此&操作总能得出0 ②capacity具备的位数，不管你是什么，&操作之后，你该是什么还是什么，以此达到求模运算的目的。以1111 & 1010100110为例:
+    ```
+    	0000001111
+      & 1010100110
+        0000000110
+        即 0000001111 & 1010100110 = 0000000110 => 678 % 16 = 6
+    ```
+    - 在上一步骤求出一堆模数相同的数字，8,16,32的二进制是1000,10000,10000，它有且仅有一个数字为1，其他位数皆为0。对于任意数字，对上那些为0的位数的时候，不管你是什么，&总会返回0，而对上那个为1的位数，不管你是什么，&总会得出你本来的数字。那些模数相同的数字，它们因此会被区分为两部分。分别以1111 & 1010100110和1111 & 1010110110为例:
+    ```
+    	0000001111
+      & 1010100110
+        0000000110
+        __________
+    	0000001111
+      & 1010110110
+        0000000110
+    ```
+    1010100110(678)和1010110110(694)对(16-1)求模得到同样的余数，但是如果使用16对这两个数字求模，情况就不挑一样了。
+    ```
+    	0000010000
+      & 1010100110
+        0000000000
+        __________
+    	0000010000
+      & 1010110110
+        0000010000
+    ```
+    如上所示，在求模得到同样余数的情况下，对2的幂次方进行&操作，依然可以得出不同的结果，这有赖于第二个数(694)在第一个数(678)的基础上增加了16。在JDK8中就是利用这种原理进行扩容时的操作：对同一个哈希桶中的链表或红黑树进行拆分，得出两个子链表(loHead,hiHead)，这两个子链表分别放入原先的哈希桶中(loHead)以及原先的哈希桶索引+旧的哈希桶数组大小的哈希桶(hiHead)中。
