@@ -32,7 +32,7 @@ tags: Java基础
 
 
 #### 简述
-- TreeNode的继承关系有点曲线救国的味道。因为HashMap.TreeNode继承自LinkedHashMap.Entry，而LinkedHashMap.Entry继承自HashMap.Node，所以在[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)的简述中我直接将TreeNode归类于Node的子类。TreeeNode之所以选择这样绕的继承关系，是为了方便HashMap.TreeNode以后可以用作普通的链表节点或树形结构的节点扩展
+- TreeNode的继承关系有点曲线救国的味道。因为HashMap.TreeNode继承自LinkedHashMap.Entry，而LinkedHashMap.Entry继承自HashMap.Node，所以在[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)的简述中我直接将TreeNode归类于Node的子类。TreeeNode之所以选择这样曲折的继承关系，是为了方便HashMap.TreeNode以后可以既作为红黑树的树节点，又可以保持自己的双向链表结构。
 - TreeNode是一个将红黑树的概念融合到类设计中的类，虽然它只是作为HashMap的内部类存在，但是它的内容依然充实。
 
 ### TreeNode的成员变量
@@ -43,7 +43,7 @@ tags: Java基础
 	- hash，保存当前节点的哈希值
 	- key，保存当前节点的key
 	- value，保存当前节点的value
-	- next，保存当前节点的下一个节点
+	- next，保存链表中当前节点的下一个节点
 
 - 继承自LinkedHashMap的成员变量
 	- before，保存双向链表中当前节点的前一个节点
@@ -53,64 +53,67 @@ tags: Java基础
 	- parent，保存红黑树的父节点，在作为红黑树的时候需要赋值
 	- left，保存红黑树的左子节点
 	- right，保存红黑树的右子节点
-	- prev，当前节点的前一个节点，在节点被删除时需要解除连接
+	- prev，保存双向链表中当前节点的前一个节点
+
+- 在红黑树的构造与拆解中，最常用的成员变量是parent、left、right、prev、next，prev、next是用来构建双向链表的的节点，parent、left、right用来构建红黑树。在HashMap中，通常会传入一个双向链表的头结点调用TreeNode的treeify()方法来构建红黑树。
 
 ### TreeNode的方法详解
 - TreeNode中频繁使用到了两个HashMap的工具方法`comparableClassFor`和`compareComparables`。如果打算完整透彻的理解TreeNode，跳过这两个方法几乎是不可能的。因此，在分析TreeNode的方法前，先将这两个方法的逻辑捋一遍。
-	- `static Class<?> comparableClassFor(Object x)`
-		- 作用：如果参数x实现了Comparable接口，则返回x的类型，否则返回null
+	- `static Class<?> comparableClassFor(Object x)` 如果参数x实现了Comparable接口，则返回x的类型，否则返回null。该方法主要配合compareComparables()使用，分别在find()，treeify()，putTreeVal()中被调用。
         - 源码如下：
         ```java
         static Class<?> comparableClassFor(Object x) {
-            if (x instanceof Comparable) {
-                Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
-                // bypass checks
-                if ((c = x.getClass()) == String.class)
-                    return c;
-                if ((ts = c.getGenericInterfaces()) != null) {
-                    for (int i = 0; i < ts.length; ++i) {
-                        if (((t = ts[i]) instanceof ParameterizedType) &&
-                            ((p = (ParameterizedType)t).getRawType() ==
-                             Comparable.class) &&
-                            (as = p.getActualTypeArguments()) != null &&
-                            // type arg is c
-                            as.length == 1 && as[0] == c)
-                            return c;
+                if (x instanceof Comparable) {
+                    Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
+                    if ((c = x.getClass()) == String.class) // bypass checks
+                        return c;
+                    if ((ts = c.getGenericInterfaces()) != null) {
+                        for (int i = 0; i < ts.length; ++i) {
+                            if (((t = ts[i]) instanceof ParameterizedType) &&
+                                ((p = (ParameterizedType)t).getRawType() ==
+                                 Comparable.class) &&
+                                (as = p.getActualTypeArguments()) != null &&
+                                as.length == 1 && as[0] == c) // type arg is c
+                                return c;
+                        }
                     }
                 }
-            }
-            return null;
+                return null;
         }
         ```
         - 涉及到的基本知识点
-        	- ParameterizedType：继承自Type，代表一个提供泛型支持的类型，例如:`java.util.Collection<E>`
-            	- ParameterizedType#getRawType：获取实际声明的类型对象
-            	- ParameterizedType#getActualTypeArguments：获取实际作为泛型参数的类型，返回值是一个数组对象
+            - ParameterizedType：继承自Type，代表一个提供泛型支持的类型，例如:`java.util.Collection<E>`
+                - ParameterizedType#getRawType 获取实际声明的类型对象
+                - ParameterizedType#getActualTypeArguments 获取实际作为泛型参数的类型，返回值是一个数组对象
             - Class#getGenericInterfaces：获取该类直接实现的接口
-    	- 基本逻辑:
-    		1. 判断参数x是否实现了Comparable接口，如果没有，则直接返回null
-    		2. 在x实现了Comparable接口的情况下，继续判断下一步骤
-    		3. 参数x是否是String类型的，如果是，则直接返回String.class
-    		4. 在参数x的类型p不是String类型的情况下，继续判断下一步骤
-    		5. 如果p直接实现的接口数组ts为空，则直接返回null
-    		6. 在ts不为空的情况下，继续下一步骤
-    		7. 循环遍历ts，从t开始。如果t是一个参数化类型的实例，同时t的实际声明类型是Comparable.class，同时t的泛型参数的个数为1，并且泛型参数就是x的类型c，则返回类型c
-    		8. 在以上方式都没找到的情况下，则返回null
-    	- 简单点来说，这个方法就是用来判断传入的对象是否为String类型或者实现了Comparable接口的类的实例
+        - 代码逻辑
+            - 判断参数x是否实现了Comparable接口，如果没有，则直接返回null
+            - 在x实现了Comparable接口的情况下，继续判断下一步骤
+            - 参数x是否是String类型的，如果是，则直接返回String.class
+            - 在参数x的类型p不是String类型的情况下，继续判断下一步骤
+            - 如果p直接实现的接口数组ts为空，则直接返回null
+            - 在ts不为空的情况下，继续下一步骤
+            - 循环遍历ts，从t开始
+                - 如果t是一个参数化类型的实例，同时t的实际声明类型是Comparable.class，同时t的泛型参数的个数为1，并且泛型参数就是x的类型c，则返回类型c
+            - 在以上方式都没找到的情况下，则返回null
+        - 简单点来说，这个方法就是用来判断传入的对象是否为String类型或者实现了Comparable接口的类的实例，如果是就返回实例的类型，如果不是就返回null
 
-	- `static int compareComparables(Class<?> kc, Object k, Object x)`
-		- 作用：比较两个对象的大小
-		- 源码如下：
-		```java
+	- `static int compareComparables(Class<?> kc, Object k, Object x)` 比较两个对象的大小。该方法主要配合comparableClassFor()使用，分别在find()，treeify()，putTreeVal()中被调用。
+        - 源码如下：
+        ```java
         static int compareComparables(Class<?> kc, Object k, Object x) {
-			return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
+                return (x == null || x.getClass() != kc ? 0 : ((Comparable)k).compareTo(x));
         }
         ```
-        - 基本逻辑:
-        	1. 如果参数x为null，则返回0（这并不表示两个对象相等）
-        	2. 如果x不为null，但是x的类型不等于传入的参数kc，则返回0（这并不表示两个对象相等）
-            3. 如果x不为null，同时x的类型等于传入的参数kc，则用类型kc中实现的Comparable接口方法比较对象的大小，并返回结果
-            4. 注意，此方法要和comparableClassFor()方法配合使用，或者至少保证参数k的类型实现了Comparable接口，否则会报强转失败
+        - 上面的代码拆分为三部分进行分析
+        ```java
+            // 该语句用来确认对象x既不为null，类型也确实为kc
+            // 如果这两个条件中有任意一个不满足，就会直接返回0
+            boolean condition = (x==null || x.getClass()!=kc;
+            // 在condition为false的情况下，返回下面的判断结果
+            boolean result = ((Comparable)k).compareTo(x));
+            condition ? 0 : result;
+        ```
 
 - `final TreeNode<K,V> root()` 返回包含当前节点的树形结构的根节点。基本思路是从当前节点的父节点一直往上拿，直到父节点为空为止。
 	- 源码如下：
@@ -149,10 +152,10 @@ tags: Java基础
             }
         }
     ```
-	- 基本思路是:
-    	- 找到节点所在的哈希桶的位置，判断该哈希桶中的节点和根节点是否为同一个节点，如果相同则直接结束
-    	- 哈希桶中节点和根节点不同时，就将根节点从之前的双向链表中取出（将根节点的前一个节点的下一个节点指向根节点的下一个节点，将根节点的下一个节点的前节点指向根节点的前一个节点）
-    	- 将根节点放入哈希桶中，并将根节点的下一个节点指向之前在哈希桶中的节点，并将此节点的前一个节点指向根节点，将根节点的前一个节点指向null
+	- 基本思路是
+		- 找到节点所在的哈希桶的位置，判断该哈希桶中的节点和根节点是否为同一个节点，如果相同则直接结束
+		- 哈希桶中节点和根节点不同时，就将根节点从之前的双向链表中取出（将根节点的前一个节点的下一个节点指向根节点的下一个节点，将根节点的下一个节点的前节点指向根节点的前一个节点）
+		- 将根节点放入哈希桶中，并将根节点的下一个节点指向之前在哈希桶中的节点，并将此节点的前一个节点指向根节点，将根节点的前一个节点指向null
 	- 代码逻辑如下:
 		1. 判断给定节点和哈希桶数组均不为空，同时哈系桶数组的大小大于0，否则直接结束
 		2. 通过哈系桶数组的大小和给定节点的hash值做位与操作，获取给定节点在哈系桶数组中的位置，然后获取到该位置当前存放的节点first
@@ -164,6 +167,7 @@ tags: Java基础
 		8. 如果rp不为空，则将rp的下一个节点置为rn
 		9. 如果firs不为空，则将first的前一个节点置为给定节点
 		10. 将给定节点的前一个节点置为null，后一个节点置为first
+	- 简单的来说，找到哈希桶中的节点和根节点对比，如果相同就直接结束，如果不相同就将根节点放入哈系统中，并将哈希桶中之前的节点连接到头节点。总体意思就是，将头结点从之前的双向链表中拆出来，放到哈希桶中，把哈希桶中之前的节点连接到根节点后面。
 
 - `final TreeNode<K,V> find(int h, Object k, Class<?> kc)` 使用给定的哈希值和key及类型从当前点开始找符合指定哈希值和key以及key的类型的节点。该方法在getTreeNode(),putTreeVal()以及其自身中被调用。
 	- 源码如下：
@@ -208,6 +212,7 @@ tags: Java基础
             - 否则如果，递归调用该方法在p的右子节点去寻找节点，如果找到的节点不为空就返回该节点
             - 否则，p被置为pl
         3. 如果p不为空，就继续执行步骤2
+	- 从当前树节点开始向下搜索。如果哈希值小于当前树节点，则转向左子树继续搜索，如果哈希值大于当前树节点，则转向右子树继续搜索。如果哈希值相等但是key值不等，就去比较key值的类型的大小，直到区分出大小为止。然后根据大小判断转向左子树还是右子树，亦或者就是当前节点直接返回。如果没找到，就返回null。
 
 - `final TreeNode<K,V> getTreeNode(int h, Object k)` 如果当前节点不为根节点，就去寻找根节点。从根节点开始寻找节点，则从当前节点开始向下寻找符合指定哈希值和key的节点并返回。该方法在getNode()，removeNode()，computeIfAbsent(),compute()，merge()中被调用。
 	- 源码如下：
@@ -222,20 +227,27 @@ tags: Java基础
     ```java
     static int tieBreakOrder(Object a, Object b) {
                 int d;
-                if (a == null || b == null ||
-                    (d = a.getClass().getName().
-                     compareTo(b.getClass().getName())) == 0)
-                    d = (System.identityHashCode(a) <= System.identityHashCode(b) ?
-                         -1 : 1);
+                if (a == null || b == null || (d = a.getClass().getName().compareTo(b.getClass().getName())) == 0)
+                    d = (System.identityHashCode(a) <= System.identityHashCode(b) ? -1 : 1);
                 return d;
-            }
+	}
     ```
-    - 步骤如下:
-        1. 如果a为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
-        2. 如果a不为空，b为空，则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
-        3. 如果a不为空，b也不为空，则判断a的类名和b的类名是否相等（字符串比较）splitsplit
-            - 如果相等则判断a的哈希值是否小于等于b的哈希值，如果小于等于则返回-1，否则返回1
-            - 如果不相等，则返回a的类名和b的类名比较的结果
+    - 该方法拆解为三部分，基本思路就是如果两个对象中有一个为null，或者两个对象的类型相同就用System.identityHashCode()来求出哥子的哈希值来判断对象大小。否则直接根据对象的类型大小来判断。
+    ```java
+        // 如果a或b中有任何一个null，则调用System.identityHashCode()方法来判断两个对象的大小
+        boolean condition = (a == null || b == null);
+        if (!condition) {
+        	// 根据a或b的类型来判断两个对象的大小
+            int d = a.getClass().getName(). compareTo(b.getClass().getName());
+            // 如果为0就证明两个对象的类型相同
+            boolean condition = d == 0;
+        }
+        if (condition) {
+            // System.identityHashCode()是一个Native方法，对于同样的对象总会返回相同的hash值，对于不同的对象，则会返回不同的哈希值。
+            d = (System.identityHashCode(a) <= System.identityHashCode(b) ? -1 : 1);
+        }
+        return d;
+    ```
 
 - `final void treeify(Node<K,V>[] tab)` 将此节点所在的链表改在为红黑树。该方法仅在HashMap的treeifyBin()、HashMap.TreeNode中的split()中被调用，源码如下：
 ```java
