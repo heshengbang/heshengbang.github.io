@@ -26,7 +26,7 @@ tags: 看书笔记
 - Queue 实现通常不允许插入 null 元素，尽管某些实现（如 LinkedList）并不禁止插入 null。即使在允许 null 的实现中，也不应该将 null 插入到 Queue 中，因为 null 也被用作 poll 方法的一个特殊返回值，表明队列不包含元素(即，队列为空时，使用poll()方法获取队列头时，会返回null，此时无法区分究竟队列是空还是头元素为null)。
 
 - Quue继承自Java中使用最广泛的一个接口Collection接口，是Java Collections Framework的成员，拥有常见集合框架都具备的一些方法，可以像使用多数集合类那样去使用它。Queue的继承体系图如下：
-![Queue继承体系图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/BlockingQueue继承体系图.jpg)
+![Queue继承体系图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/Queue继承体系图.jpg)
 
 - Queue的源码如下：
 ```java
@@ -193,16 +193,16 @@ public class App {
 ![阻塞队列继承体系图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/阻塞队列继承体系图.jpg)
 
 - BlockingQueue在java.util.concurrent包下面有以下接口或实现类
-  接口：
-		- BlockingDeque
-		- TransferQueue
-  实现类：
-		- ArrayBlockingQueue
-		- DelayQueue
-		- LinkedBlockingQueue
-		- PriorityBlockingQueue
-		- SynchronousQueue
-		- ScheduledThreadPoolExecutor.DelayedWorkQueue
+  接口:
+	- BlockingDeque
+	- TransferQueue
+  实现类:
+	- ArrayBlockingQueue
+	- DelayQueue
+	- LinkedBlockingQueue
+	- PriorityBlockingQueue
+	- SynchronousQueue
+	- ScheduledThreadPoolExecutor.DelayedWorkQueue
 
 - ArrayBlockingQueue是一个有界队列，队列按照FIFO的原则对元素进行排序，初始化时必须指定容量，队列用循环数组实现。队列的头部 是在队列中存在时间最长的元素。队列的尾部 是在队列中存在时间最短的元素。新元素插入到队列的尾部，队列获取操作则是从队列头部开始获得元素。ArrayBlockingQueue是一个典型的“有界缓存区”，固定大小的数组在其中保持生产者插入的元素和使用者提取的元素。一旦创建了这样的缓存区，就不能再增加其容量。试图向已满队列中放入元素会导致操作受阻塞；试图从空队列中提取元素将导致类似阻塞。
 
