@@ -2,7 +2,7 @@
 layout: post
 title: JVM GC算法与GC器
 date: 2018-5-29
-tags: 《深入理解Java虚拟机》看书笔记
+tags: 看书笔记
 ---
 
 ### 本文目录

@@ -2,7 +2,7 @@
 layout: post
 title: Java内存区域
 date: 2018-5-14
-tags: 《深入理解Java虚拟机》看书笔记
+tags: 看书笔记
 ---
 
 ## Java内存区域

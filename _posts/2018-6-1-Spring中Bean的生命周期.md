@@ -48,4 +48,4 @@ tags: Spring
 - Bean创建完毕，驻留在ApplicationContext中
 - 如果Bean实现了DisposableBean接口，Spring将调用它的destroy接口方法（如果Bean使用destroy-method，该方法也会被调用）
 
-##### 注：目前网络上有不同的Spring Bean声明周期解释，是因为有的是从Bean的实例化开始解释，有的是从BeanFactory开始解释
+##### 注：目前网络上有不同的Spring Bean生命周期解释，是因为有的是从Bean的实例化开始解释，有的是从BeanFactory创建开始解释
