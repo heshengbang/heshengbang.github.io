@@ -282,7 +282,7 @@ public Configuration configure(String resource) throws HibernateException {
 
 - 在查询hql语句时要使用查询缓存，就需要在查询语句后面设置这样一个方法:
 ```java
-List<Student> ls = session.createQuery("from Department where name like ?")
+List<Department> ls = session.createQuery("from Department where name like ?")
 		//开启查询缓存，查询缓存也是SessionFactory级别的缓存
 		.setCacheable(true)
 		.setParameter(0, "%系统%")
