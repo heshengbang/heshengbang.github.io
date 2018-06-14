@@ -203,66 +203,65 @@ public Configuration configure(String resource) throws HibernateException {
 
 - 首先，将ehcache的依赖包加入classpath或者maven项目的pom.xml文件中
 
-- 其次，通过在hibernate.config.xml使用以下配置来配置二级缓存：
+- 其次，通过在hibernate.config.xml使用以下配置来配置二级缓存:
 ```xml
-<!-- 开启二级缓存 -->
-<property name="hibernate.cache.use_second_level_cache">true</property>
-<!-- 二级缓存的提供类 在hibernate4.0版本以后我们都是配置这个属性来指定二级缓存的提供类-->
-<property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
-<!-- 二级缓存配置文件的位置 -->
-<property name="hibernate.cache.provider_configuration_file_resource_path">ehcache.xml</property>
+    <!-- 开启二级缓存 -->
+    <property name="hibernate.cache.use_second_level_cache">true</property>
+    <!-- 二级缓存的提供类 在hibernate4.0版本以后我们都是配置这个属性来指定二级缓存的提供类-->
+    <property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
+    <!-- 二级缓存配置文件的位置 -->
+    <property name="hibernate.cache.provider_configuration_file_resource_path">ehcache.xml</property>
 ```
 
 - 因为ehcache需要配置ehcache.xml来使用缓存，所以添加ehcache.xml配置如下:
 ```xml
-<ehcache>
-	<!--指定二级缓存存放在磁盘上的位置-->
-	<diskStore path="user.dir"/>
-	<!--我们可以给每个实体类指定一个对应的缓存，如果没有匹配到该类，则使用这个默认的缓存配置。各个选项的具体含义可通过ehcache.xml的官方文档查看-->
-	<defaultCache
-		maxElementsInMemory="10000"
-		eternal="false"
-		timeToIdleSeconds="120"
-		timeToLiveSeconds="120"
-		overflowToDisk="true"
-	/>
-	<!--可以给每个实体类指定一个配置文件，通过name属性指定，要使用类的全名-->
-	<cache name="com.hsb.hibernate.Department"
-		maxElementsInMemory="10000"
-		eternal="false"
-		timeToIdleSeconds="300"
-		timeToLiveSeconds="600"
-		overflowToDisk="true"
-	/>
-</ehcache>
+    <ehcache>
+        <!--指定二级缓存存放在磁盘上的位置-->
+        <diskStore path="user.dir"/>
+        <!--我们可以给每个实体类指定一个对应的缓存，如果没有匹配到该类，则使用这个默认的缓存配置。各个选项的具体含义可通过ehcache.xml的官方文档查看-->
+        <defaultCache
+            maxElementsInMemory="10000"
+            eternal="false"
+            timeToIdleSeconds="120"
+            timeToLiveSeconds="120"
+            overflowToDisk="true"
+        />
+        <!--可以给每个实体类指定一个配置文件，通过name属性指定，要使用类的全名-->
+        <cache name="com.hsb.hibernate.Department"
+            maxElementsInMemory="10000"
+            eternal="false"
+            timeToIdleSeconds="300"
+            timeToLiveSeconds="600"
+            overflowToDisk="true"
+        />
+    </ehcache>
 ```
 
 - 针对具体的映射类来配置，是否使用二级缓存。
-	- 配置式：
-	```xml
-	<hibernate-mapping package="com.hsb.hibernate.Department">
-		<class name="Department" table="department">
-			<!-- 二级缓存一般设置为只读的 -->
-			<cache usage="read-only"/>
-			<id name="id" type="int" column="id">
-				<generator class="native"/>
-			</id>
-			<property name="name" column="name" type="string"></property>
-			<property name="sex" column="code" type="string"></property>
-			<many-to-one name="address" column="rid" fetch="join"></many-to-one>
-		</class>
-	</hibernate-mapping>
-    ```
-    - 注解式：在类名上面添加`@Cache(usage=CacheConcurrencyStrategy.READ_ONLY)`，例如：
-    ```java
-	@Entity
-	@Table(name="department")
-	@Cache(usage=CacheConcurrencyStrategy.READ_ONLY)
-	public class Department
-	{
-		...
-	}
-    ```
+	- 配置式:
+        ```xml
+            <hibernate-mapping package="com.hsb.hibernate.Department">
+                <class name="Department" table="department">
+                    <cache usage="read-only"/>
+                    <id name="id" type="int" column="id">
+                        <generator class="native"/>
+                    </id>
+                    <property name="name" column="name" type="string"></property>
+                    <property name="sex" column="code" type="string"></property>
+                    <many-to-one name="address" column="rid" fetch="join"></many-to-one>
+                </class>
+            </hibernate-mapping>
+        ```
+    - 注解式：在类名上面添加`@Cache(usage=CacheConcurrencyStrategy.READ_ONLY)`，例如:
+        ```java
+        @Entity
+        @Table(name="department")
+        @Cache(usage=CacheConcurrencyStrategy.READ_ONLY)
+        public class Department
+        {
+            ...
+        }
+        ```
     - 二级缓存的使用策略一般有这几种：read-only、nonstrict-read-write、read-write、transactional。通常使用二级缓存都是将其配置成read-only，即我们应当在那些不需要进行修改的实体类上使用二级缓存，否则如果对缓存进行读写的话，性能会变差，这样设置缓存就失去了意义。
 
 - 二级缓存是sessionFactory级别的缓存，这区别于一级缓存。启用二级缓存后，系统会在session关闭的情况下，去访问二级缓存，确定二级缓存中是否有想要访问的数据，如果有，则返回数据，如果没有则发出sql查询。
