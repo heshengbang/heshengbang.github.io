@@ -114,8 +114,9 @@ public class MyClass {
 - Java头对象
 	- 它实现synchronized的锁对象的基础
 	- 一般而言，synchronized使用的锁对象是存储在Java对象头里的
-	- jvm中采用2个字来存储对象头(如果对象是数组则会分配3个字，多出来的1个字记录的是数组长度)
-	- 对象头由一个mark word，class word，一个32位长度的字（如果该对象是一个数组），一个32位的填充（如果对齐规则需要的话）以及零个或多个实例组成的字段，数组元素或元数据字段，参见[Object header layout](https://stackoverflow.com/questions/50502663/how-to-calculate-java-arrays-memory-size)
+	- jvm中采用2个字节来存储对象头(如果对象是数组则会分配3个字节，多出来的1个字节记录的是数组长度)
+	- 在32位JVM虚拟机中，对象头由mark word，class word，一个32位长度的字节（如果该对象是一个数组），一个32位的填充（如果对齐规则需要的话）以及零个或多个实例组成的字段，数组元素或元数据字段，参见[Object header layout](https://stackoverflow.com/questions/50502663/how-to-calculate-java-arrays-memory-size)
+	- 在64位虚拟机中，对象头的组成有所不同，参见
 
        虚拟机位数 | 头对象结构 | 说明
              - | :-: | -:
@@ -128,38 +129,40 @@ public class MyClass {
     	- | :-: | -:
     无锁状态 | 对象HashCode | 对象分代年龄 | 0 | 01
 
-    - 由于对象头的信息是与对象自身定义的数据没有关系的额外存储成本，因此考虑到JVM的空间效率，Mark Word 被设计成为一个非固定的数据结构，以便存储更多有效的数据，它会根据对象本身的状态复用自己的存储空间。如下图所示：
-    ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/object_header_structure.png)
+    - 由于对象头的信息是与对象自身定义的数据没有关系的额外存储成本，因此考虑到JVM的空间效率，Mark Word 被设计成为一个非固定的数据结构，以便存储更多有效的数据，它会根据对象本身的状态复用自己的存储空间。32位虚拟机如下图所示：
+    ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/32_object_header_structure.png)
+      64位虚拟机如下图所示:
+    ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/64_object_header_structure.png)
     - 轻量级锁和偏向锁是Java 6 对 synchronized 锁进行优化后新增加的
     - 重量级锁也就是通常说synchronized的对象锁，锁标识位为10，其中指针指向的是monitor对象（也称为管程或监视器锁）的起始地址
     - 每个对象都存在着一个 monitor 与之关联，对象与其 monitor 之间的关系有存在多种实现方式，如monitor可以与对象一起创建销毁或当线程试图获取对象锁时自动生成，但当一个 monitor 被某个线程持有后，它便处于锁定状态
     - 在Java虚拟机(HotSpot)中，monitor是由ObjectMonitor实现的，其主要数据结构如下（位于HotSpot虚拟机源码ObjectMonitor.hpp文件，C++实现的）
     ```
-    ObjectMonitor() {
-        _header       = NULL;
-        _count        = 0; //记录个数
-        _waiters      = 0,
-        _recursions   = 0;
-        _object       = NULL;
-        _owner        = NULL;
-        _WaitSet      = NULL; //处于wait状态的线程，会被加入到_WaitSet
-        _WaitSetLock  = 0 ;
-        _Responsible  = NULL ;
-        _succ         = NULL ;
-        _cxq          = NULL ;
-        FreeNext      = NULL ;
-        _EntryList    = NULL ; //处于等待锁block状态的线程，会被加入到该列表
-        _SpinFreq     = 0 ;
-        _SpinClock    = 0 ;
-        OwnerIsThread = 0 ;
-	}
+        ObjectMonitor() {
+            _header       = NULL;
+            _count        = 0; //记录个数
+            _waiters      = 0,
+            _recursions   = 0;
+            _object       = NULL;
+            _owner        = NULL;
+            _WaitSet      = NULL; //处于wait状态的线程，会被加入到_WaitSet
+            _WaitSetLock  = 0 ;
+            _Responsible  = NULL ;
+            _succ         = NULL ;
+            _cxq          = NULL ;
+            FreeNext      = NULL ;
+            _EntryList    = NULL ; //处于等待锁block状态的线程，会被加入到该列表
+            _SpinFreq     = 0 ;
+            _SpinClock    = 0 ;
+            OwnerIsThread = 0 ;
+        }
     ```
 		- ObjectMonitor中有两个队列，_WaitSet 和 _EntryList，用来保存ObjectWaiter对象列表( 每个等待锁的线程都会被封装成ObjectWaiter对象)
 		- _owner指向持有ObjectMonitor对象的线程，当多个线程同时访问一段同步代码时，首先会进入 _EntryList 集合，当线程获取到对象的monitor 后进入 _Owner 区域并把monitor中的owner变量设置为当前线程同时monitor中的计数器count加1
 		- 若线程调用wait()方法，将释放当前持有的monitor，owner变量恢复为null，count自减1，同时该线程进入 WaitSet集合中等待被唤醒
 		- 若当前线程执行完毕也将释放monitor(锁)并复位变量的值，以便其他线程进入获取monitor(锁)
 		![ObjectMonitor示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/ObjectMonitor示意图.jpg)
-	- 正式因为ObjectMonitor也即是monitor对象存在于每个Java对象的对象头中(存储的指针的指向)，synchronized锁便是通过这种方式获取锁的，也是为什么Java中任意对象可以作为锁的原因，同时也是notify/notifyAll/wait等方法存在于顶级对象Object中的原因
+	- 正是因为ObjectMonitor也即是monitor对象存在于每个Java对象的对象头中(存储的指针的指向)，synchronized锁便是通过这种方式获取锁的，也是为什么Java中任意对象可以作为锁的原因，同时也是notify/notifyAll/wait等方法存在于顶级对象Object中的原因
 
 ### synchronized的可重入性
 - 当一个线程试图操作一个由其他线程持有的对象锁的临界资源时，将会处于阻塞状态，但当一个线程再次请求自己持有对象锁的临界资源时，这种情况属于重入锁，请求将会成功
