@@ -10,6 +10,8 @@ tags: Hibernate
 
 ---
 
+本文基于hibernate-core-5.2.2.Final。
+
 ### Hibernate的一次查询过程
 - 以查询部门为例，Department和数据库中的department表相映射，它的一次查询代码如下：
 ```java
@@ -48,11 +50,11 @@ public QueryImplementor createQuery(String queryString) {
             // 给查询语句设置注释？
 			query.setComment( queryString );
             // 调用org.hibernate.internal.SessionImpl中的applyQuerySettingsAndHints执行查询操作
-			applyQuerySettingsAndHints( query );
+			applyQuerySettingsAndHints(query);
 			return query;
 		}
 		catch (RuntimeException e) {
-			throw exceptionConverter.convert( e );
+			throw exceptionConverter.convert(e);
 		}
 	}
 ```
@@ -73,6 +75,89 @@ public QueryImplementor createQuery(String queryString) {
 
 
 ### Hibernate工作原理
+- 一次完整的Hibernate查询源码如下所示：
+```java
+public class QueryObjectDemo {
+        public static void main(String[] args) {
+            // 新建configuration实例对象，调用configure()方法对其进行装配
+            Configuration configuration = new Configuration().configure();
+            // 根据configuration实例获取SessionFactory
+            SessionFactory sessionFactory = configuration.buildSessionFactory();
+            // 从SessionFactory中获取一个session实例
+            Session session = sessionFactory.getCurrentSession();
+            // 在session中开始一次事务，只有对数据库的更新(add/update/delete)操作才需要事务
+            // 事务是对数据库最基本的操作单元，四大特性是ACID
+            session.beginTransaction();
+            String sql = "from " + Department.class.getName();
+            // 在session中创建一次查询
+            Query query = session.createQuery(sql);
+            // 设置查询结果的偏移量offset
+            query = query.setFirstResult(0);
+            // 设置查询结果的数量limit
+            query = query.setMaxResults(10);
+            // 执行查询
+            Iterator<Department> employees = query.iterate();
+            while (employees.hasNext()) {
+                System.out.println(employees.next().getDeptName());
+            }
+            // 同样只有更新操作才需要事务
+            session.getTransaction().commit();
+            // 关闭Session，一级缓存失效
+            session.close();
+            // 关闭SessionFactory，二级缓存和查询缓存失效
+            sessionFactory.close();
+        }
+}
+```
+  以上源代码展示了一次查询过程从前到后的过程，其中比较引人关注的还是新建的Configuration对象，如何通过调用configure方法来装配配置文件中的各项内容。简单来说，Configuration中持有一个StandardServiceRegistryBuilder对象实例，当调用configure方法时，若指定了地址和名字则去获取指定的配置文件，如果没有，就会获取默认的配置文件名，获取到配置文件并解析配置文件然后再将这些配置装配到StandardServiceRegistryBuilder对象实例中。下面展示`org.hibernate.cfg.Configuration`通过调用configure()进行装配的源码如下：
+```java
+// used to build SF
+private StandardServiceRegistryBuilder standardServiceRegistryBuilder;
+public Configuration configure() throws HibernateException {
+		return configure( StandardServiceRegistryBuilder.DEFAULT_CFG_RESOURCE_NAME );
+	}
+public Configuration configure(String resource) throws HibernateException {
+		standardServiceRegistryBuilder.configure( resource );
+		// todo : still need to have StandardServiceRegistryBuilder handle the "other cfg.xml" elements.
+		//		currently it just reads the config properties
+		properties.putAll( standardServiceRegistryBuilder.getSettings() );
+		return this;
+	}
+```
+  下面展示`org.hibernate.boot.registry.StandardServiceRegistryBuilder`的部分相关源码：
+```java
+	// The default resource name for a hibernate configuration xml file.
+	public static final String DEFAULT_CFG_RESOURCE_NAME = "hibernate.cfg.xml";
+    public StandardServiceRegistryBuilder configure(String resourceName) {
+		return configure( configLoader.loadConfigXmlResource( resourceName ) );
+	}
+    public StandardServiceRegistryBuilder configure(LoadedConfig loadedConfig) {
+		aggregatedCfgXml.merge( loadedConfig );
+		settings.putAll( loadedConfig.getConfigurationValues() );
+
+		return this;
+	}
+    public Map getSettings() {
+		return settings;
+	}
+```
+  源码再往深处挖就是具体的获取配置文件，根据文件的类型进行解析，获取jdbc相关配置。这里就不一一展示，如果想看更详细的源码可以直接去薅hibernate-core包。解析xml在大多数开源框架中都会用到，各家的实现大致步骤基本一致，但是在细节上各有不同，有兴趣的可以挨个去看看hibernate如何解析hibernate.cfg.xml，spring如何解析spring-context等等。
+
+- 从上一步源码我们能推算出一次查询的大致参与角色及去作用如下：
+	- 新建Configuration，通过configure()方法去获取到其配置
+	- 使用上一步的configuration实例对象，通过调用buildSessionFactory()中获取到SessionFactory对象实例
+	- 从上一步的SessionFactory实例获取到Session实例对象，有两种方式
+		- 获取一个新Session，调用openSession()方法获得
+		- 获取当前已经存在的Session，调用getCurrentSession()方法获得
+	- 在Session中开始一个事务，通过以下两种方式，实际上没区别:
+		- session.beginTransaction();
+		- session.getTransaction().begin();
+	- 在session中创建一个Query实例对象，并给其指定各种查询属性，例如offset和limit以及是否启用查询缓存
+	- 获取查询结果，常见的三种方式如下：
+		- 通过list()获取一个List对象
+		- 通过iterate()获取一个Iterator对象
+		- getResultList()同样获取到一个List对象
+
 - Hibernate中每个配置文件对应一个configuration对象。在极端情况下，不使用任何配置文件，也可以创建Configuration对象。
 	- org.hibernate.cfg.Configuration实例代表一个应用程序到SQL数据库的映射配置，Configuration提供了一个buildSessionFactory()方法，该方法可以产生一个不可变的SessionFactory对象。
 	- 可以直接实例化Configuration来获取一个实例，并为它指定一个Hibernate映射文件，如果映射文件在类加载路径中，则可以使用addResource()方法来添加映射定义文件。
@@ -120,71 +205,65 @@ public QueryImplementor createQuery(String queryString) {
 
 - 其次，通过在hibernate.config.xml使用以下配置来配置二级缓存：
 ```xml
-		<!-- 开启二级缓存 -->
-        <property name="hibernate.cache.use_second_level_cache">true</property>
-        <!-- 二级缓存的提供类 在hibernate4.0版本以后我们都是配置这个属性来指定二级缓存的提供类-->
-        <property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
-        <!-- 二级缓存配置文件的位置 -->
-        <property name="hibernate.cache.provider_configuration_file_resource_path">ehcache.xml</property>
+<!-- 开启二级缓存 -->
+<property name="hibernate.cache.use_second_level_cache">true</property>
+<!-- 二级缓存的提供类 在hibernate4.0版本以后我们都是配置这个属性来指定二级缓存的提供类-->
+<property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
+<!-- 二级缓存配置文件的位置 -->
+<property name="hibernate.cache.provider_configuration_file_resource_path">ehcache.xml</property>
 ```
 
-- 因为ehcache需要配置ehcache.xml来使用缓存，所以添加ehcache.xml配置如下：
+- 因为ehcache需要配置ehcache.xml来使用缓存，所以添加ehcache.xml配置如下:
 ```xml
 <ehcache>
-      <!--指定二级缓存存放在磁盘上的位置-->
-        <diskStore path="user.dir"/>
-      <!--我们可以给每个实体类指定一个对应的缓存，如果没有匹配到该类，则使用这个默认的缓存配置。各个选项的具体含义可通过ehcache.xml的官方文档查看-->
-        <defaultCache
-            maxElementsInMemory="10000"
-            eternal="false"
-            timeToIdleSeconds="120"
-            timeToLiveSeconds="120"
-            overflowToDisk="true"
-            />
-      <!--可以给每个实体类指定一个配置文件，通过name属性指定，要使用类的全名-->
-        <cache name="com.hsb.hibernate.Department"
-            maxElementsInMemory="10000"
-            eternal="false"
-            timeToIdleSeconds="300"
-            timeToLiveSeconds="600"
-            overflowToDisk="true"
-            />
-        <cache name="ehcache"
-            maxElementsInMemory="1000"
-            eternal="true"
-            timeToIdleSeconds="0"
-            timeToLiveSeconds="0"
-            overflowToDisk="false"
-            /> -->
+	<!--指定二级缓存存放在磁盘上的位置-->
+	<diskStore path="user.dir"/>
+	<!--我们可以给每个实体类指定一个对应的缓存，如果没有匹配到该类，则使用这个默认的缓存配置。各个选项的具体含义可通过ehcache.xml的官方文档查看-->
+	<defaultCache
+		maxElementsInMemory="10000"
+		eternal="false"
+		timeToIdleSeconds="120"
+		timeToLiveSeconds="120"
+		overflowToDisk="true"
+	/>
+	<!--可以给每个实体类指定一个配置文件，通过name属性指定，要使用类的全名-->
+	<cache name="com.hsb.hibernate.Department"
+		maxElementsInMemory="10000"
+		eternal="false"
+		timeToIdleSeconds="300"
+		timeToLiveSeconds="600"
+		overflowToDisk="true"
+	/>
 </ehcache>
 ```
 
-- 针对具体的映射类来配置，是否使用二级缓存
+- 针对具体的映射类来配置，是否使用二级缓存。
 	- 配置式：
 	```xml
-        <hibernate-mapping package="com.hsb.hibernate.Department">
-            <class name="Department" table="department">
-                <!-- 二级缓存一般设置为只读的 -->
-                <cache usage="read-only"/>
-                <id name="id" type="int" column="id">
-                    <generator class="native"/>
-                </id>
-                <property name="name" column="name" type="string"></property>
-                <property name="sex" column="code" type="string"></property>
-                <many-to-one name="address" column="rid" fetch="join"></many-to-one>
-            </class>
-    	</hibernate-mapping>
+	<hibernate-mapping package="com.hsb.hibernate.Department">
+		<class name="Department" table="department">
+			<!-- 二级缓存一般设置为只读的 -->
+			<cache usage="read-only"/>
+			<id name="id" type="int" column="id">
+				<generator class="native"/>
+			</id>
+			<property name="name" column="name" type="string"></property>
+			<property name="sex" column="code" type="string"></property>
+			<many-to-one name="address" column="rid" fetch="join"></many-to-one>
+		</class>
+	</hibernate-mapping>
     ```
     - 注解式：在类名上面添加`@Cache(usage=CacheConcurrencyStrategy.READ_ONLY)`，例如：
     ```java
-        @Entity
-        @Table(name="department")
-        @Cache(usage=CacheConcurrencyStrategy.READ_ONLY)
-        public class Department
-        {
-            ...
-        }
+	@Entity
+	@Table(name="department")
+	@Cache(usage=CacheConcurrencyStrategy.READ_ONLY)
+	public class Department
+	{
+		...
+	}
     ```
+    - 二级缓存的使用策略一般有这几种：read-only、nonstrict-read-write、read-write、transactional。通常使用二级缓存都是将其配置成read-only，即我们应当在那些不需要进行修改的实体类上使用二级缓存，否则如果对缓存进行读写的话，性能会变差，这样设置缓存就失去了意义。
 
 - 二级缓存是sessionFactory级别的缓存，这区别于一级缓存。启用二级缓存后，系统会在session关闭的情况下，去访问二级缓存，确定二级缓存中是否有想要访问的数据，如果有，则返回数据，如果没有则发出sql查询。
 
