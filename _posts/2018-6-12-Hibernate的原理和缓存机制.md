@@ -6,7 +6,7 @@ title: Hibernate的原理和缓存机制
 
 date: 2018-6-12
 
-tags: Hibernate
+tags: ORM框架
 
 ---
 
