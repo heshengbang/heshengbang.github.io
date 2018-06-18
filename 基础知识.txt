@@ -144,8 +144,12 @@
 - Hadoop原理
 - Zookeeper的原理
 - 数据一致性算法（https://blog.csdn.net/u010039929/article/details/70171672）
-- leafID生成原理
 - 现在的项目架构
+	- spring+springmvc+hibernate+activemq+ehcache+cxf+postgresql
 - 常见算法
+	- 快排
+	- 冒泡
 - 设计模式
 - ehcache
+	- 底层采用LinkedHashMap存取数据
+	- 三种清空数据策略：FIFO/LFU/LRU

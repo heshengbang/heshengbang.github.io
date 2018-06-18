@@ -107,43 +107,37 @@ public interface BlockingQueue<E> extends Queue<E> {
 - 原理概论
 	- LinkedBlockingQueue是一个基于链表的阻塞队列，其内部维持一个基于链表的数据队列，实际上我们对LinkedBlockingQueue的API操作都是间接操作该数据队列，这里我们先看看LinkedBlockingQueue的内部成员变量
 	```java
-    public class LinkedBlockingQueue<E> extends AbstractQueue<E>
-        implements BlockingQueue<E>, java.io.Serializable {
-        /**
-         * 节点类，用于存储数据
-         */
-        static class Node<E> {
-            E item;
-            /**
-             * One of:
-             * - the real successor Node
-             * - this Node, meaning the successor is head.next
-             * - null, meaning there is no successor (this is the last node)
-             */
-            Node<E> next;
-            Node(E x) { item = x; }
+        public class LinkedBlockingQueue<E> extends AbstractQueue<E>
+            implements BlockingQueue<E>, java.io.Serializable {
+            // 节点类，用于存储数据
+            static class Node<E> {
+                E item;
+                /**
+                 * One of:
+                 * - the real successor Node
+                 * - this Node, meaning the successor is head.next
+                 * - null, meaning there is no successor (this is the last node)
+                 */
+                Node<E> next;
+                Node(E x) { item = x; }
+            }
+            // 阻塞队列的大小，默认为Integer.MAX_VALUE
+            private final int capacity;
+            // 当前阻塞队列中的元素个数
+            private final AtomicInteger count = new AtomicInteger();
+            // 阻塞队列的头结点
+            transient Node<E> head;
+            // 阻塞队列的尾节点
+            private transient Node<E> last;
+            // 获取并移除元素时使用的锁，如take, poll, etc
+            private final ReentrantLock takeLock = new ReentrantLock();
+            // notEmpty条件对象，当队列没有数据时用于挂起执行删除的线程
+            private final Condition notEmpty = takeLock.newCondition();
+            // 添加元素时使用的锁如 put, offer, etc
+            private final ReentrantLock putLock = new ReentrantLock();
+            // notFull条件对象，当队列数据已满时用于挂起执行添加的线程
+            private final Condition notFull = putLock.newCondition();
         }
-        /** 阻塞队列的大小，默认为Integer.MAX_VALUE */
-        private final int capacity;
-        /** 当前阻塞队列中的元素个数 */
-        private final AtomicInteger count = new AtomicInteger();
-        /**
-         * 阻塞队列的头结点
-         */
-        transient Node<E> head;
-        /**
-         * 阻塞队列的尾节点
-         */
-        private transient Node<E> last;
-        /** 获取并移除元素时使用的锁，如take, poll, etc */
-        private final ReentrantLock takeLock = new ReentrantLock();
-        /** notEmpty条件对象，当队列没有数据时用于挂起执行删除的线程 */
-        private final Condition notEmpty = takeLock.newCondition();
-        /** 添加元素时使用的锁如 put, offer, etc */
-        private final ReentrantLock putLock = new ReentrantLock();
-        /** notFull条件对象，当队列数据已满时用于挂起执行添加的线程 */
-        private final Condition notFull = putLock.newCondition();
-    }
     ```
     - 从源码可以看出每个添加到LinkedBlockingQueue队列中的数据都将被封装成Node节点，添加的链表队列中，其中head和last分别指向队列的头结点和尾结点。
 	- LinkedBlockingQueue内部分别使用了takeLock 和 putLock 对并发进行控制，也就是说，添加和删除操作并不是互斥操作，可以同时进行，这样也就可以大大提高吞吐量
@@ -154,72 +148,72 @@ public interface BlockingQueue<E> extends Queue<E> {
 - 添加方法的实现原理
 	- 添加方法
 		- `add()`方法由AbstractQueue抽象类代为默认实现，源码如下：
-        ```java
-        public boolean add(E e) {
-            if (offer(e))
-                return true;
-            else
-                throw new IllegalStateException("Queue full");
-        }
+            ```java
+            public boolean add(E e) {
+                if (offer(e))
+                    return true;
+                else
+                    throw new IllegalStateException("Queue full");
+            }
         ```
         该方法实际上的实现是调用`offer()`方法来实现的
 
         - `offer()`的源码如下：
         ```java
-        public boolean offer(E e) {
-        	//添加的元素如果为null 则直接抛出错误
-            if (e == null) throw new NullPointerException();
-            //获取队列中当前元素个数
-            final AtomicInteger count = this.count;
-            //判断队列中的个数是否已满
-            if (count.get() == capacity)
-            	//如果队列已满就添加失败
-                return false;
-            int c = -1;
-            //创建新节点
-            Node<E> node = new Node<E>(e);
-            //获取添加锁
-            final ReentrantLock putLock = this.putLock;
-            //加锁
-            putLock.lock();
-            try {
-            	//再次判断队列是否已满，考虑并发情况
-                if (count.get() < capacity) {
-                	//添加元素
-                    enqueue(node);
-                    //拿到当前未添加新元素时的队列长度
-                    c = count.getAndIncrement();
-                    if (c + 1 < capacity)
-                    	//唤醒下一个添加线程，执行添加操作
-                        notFull.signal();
+            public boolean offer(E e) {
+                //添加的元素如果为null 则直接抛出错误
+                if (e == null) throw new NullPointerException();
+                //获取队列中当前元素个数
+                final AtomicInteger count = this.count;
+                //判断队列中的个数是否已满
+                if (count.get() == capacity)
+                    //如果队列已满就添加失败
+                    return false;
+                int c = -1;
+                //创建新节点
+                Node<E> node = new Node<E>(e);
+                //获取添加锁
+                final ReentrantLock putLock = this.putLock;
+                //加锁
+                putLock.lock();
+                try {
+                    //再次判断队列是否已满，考虑并发情况
+                    if (count.get() < capacity) {
+                        //添加元素
+                        enqueue(node);
+                        //拿到当前未添加新元素时的队列长度
+                        c = count.getAndIncrement();
+                        if (c + 1 < capacity)
+                            //唤醒下一个添加线程，执行添加操作
+                            notFull.signal();
+                    }
+                } finally {
+                    putLock.unlock();
                 }
-            } finally {
-                putLock.unlock();
+                // 由于存在添加锁和消费锁，而消费锁和添加锁都会持续唤醒等待线程，因此count肯定会变化
+                //这里的if条件表示如果队列中还有1条数据
+                if (c == 0)
+                    //如果还存在数据那么就唤醒消费锁
+                    signalNotEmpty();
+                return c >= 0;
             }
-            // 由于存在添加锁和消费锁，而消费锁和添加锁都会持续唤醒等待线程，因此count肯定会变化
-            //这里的if条件表示如果队列中还有1条数据
-            if (c == 0)
-            	//如果还存在数据那么就唤醒消费锁
-                signalNotEmpty();
-            return c >= 0;
-        }
-        //入队操作
-        private void enqueue(Node<E> node) {
-             //队列尾节点指向新的node节点
-             last = last.next = node;
-        }
-        //signalNotEmpty方法
-        private void signalNotEmpty() {
-            final ReentrantLock takeLock = this.takeLock;
-            //消费锁加锁
-            takeLock.lock();
-            try {
-            	//唤醒在不为空条件上等待的消费线程
-                notEmpty.signal();
-            } finally {
-                takeLock.unlock();
+            //入队操作
+            private void enqueue(Node<E> node) {
+                 //队列尾节点指向新的node节点
+                 last = last.next = node;
             }
-        }
+            //signalNotEmpty方法
+            private void signalNotEmpty() {
+                final ReentrantLock takeLock = this.takeLock;
+                //消费锁加锁
+                takeLock.lock();
+                try {
+                    //唤醒在不为空条件上等待的消费线程
+                    notEmpty.signal();
+                } finally {
+                    takeLock.unlock();
+                }
+            }
 		```
         Offer()源码中首先判断了队列是否已经满了，如果满了直接返回。此时，如果没满就获取锁，在获取锁并加锁以后，再次判断队列是否已满：
         	- 如果满了就直接添加锁解锁，并判断此时队列容量大小，如果等于0就唤醒在不为空条件上面等待的线程
@@ -229,132 +223,132 @@ public interface BlockingQueue<E> extends Queue<E> {
 
 		- `put()`源码如下：
 		```java
-        public void put(E e) throws InterruptedException {
-            if (e == null) throw new NullPointerException();
-            int c = -1;
-            Node<E> node = new Node<E>(e);
-            final ReentrantLock putLock = this.putLock;
-            final AtomicInteger count = this.count;
-            putLock.lockInterruptibly();
-            try {
-                while (count.get() == capacity) {
-                    notFull.await();
+            public void put(E e) throws InterruptedException {
+                if (e == null) throw new NullPointerException();
+                int c = -1;
+                Node<E> node = new Node<E>(e);
+                final ReentrantLock putLock = this.putLock;
+                final AtomicInteger count = this.count;
+                putLock.lockInterruptibly();
+                try {
+                    while (count.get() == capacity) {
+                        notFull.await();
+                    }
+                    enqueue(node);
+                    c = count.getAndIncrement();
+                    if (c + 1 < capacity)
+                        notFull.signal();
+                } finally {
+                    putLock.unlock();
                 }
-                enqueue(node);
-                c = count.getAndIncrement();
-                if (c + 1 < capacity)
-                    notFull.signal();
-            } finally {
-                putLock.unlock();
+                if (c == 0)
+                    signalNotEmpty();
             }
-            if (c == 0)
-                signalNotEmpty();
-        }
         ```
 	- 移除方法
 		- `remove()`同样是在AbstractQueue中默认实现，也和`add()`类似，是调用poll()实现，源码如下：
 		```java
-        public boolean remove(Object o) {
-            if (o == null) return false;
-            fullyLock();
-            try {
-                for (Node<E> trail = head, p = trail.next;
-                     p != null;
-                     trail = p, p = p.next) {
-                    if (o.equals(p.item)) {
-                        unlink(p, trail);
-                        return true;
+            public boolean remove(Object o) {
+                if (o == null) return false;
+                fullyLock();
+                try {
+                    for (Node<E> trail = head, p = trail.next;
+                         p != null;
+                         trail = p, p = p.next) {
+                        if (o.equals(p.item)) {
+                            unlink(p, trail);
+                            return true;
+                        }
                     }
+                    return false;
+                } finally {
+                    fullyUnlock();
                 }
-                return false;
-            } finally {
-                fullyUnlock();
             }
-        }
-        void fullyLock() {
-            putLock.lock();
-            takeLock.lock();
-        }
-        void unlink(Node<E> p, Node<E> trail) {
-            p.item = null;
-            trail.next = p.next;
-            if (last == p)
-                last = trail;
-            if (count.getAndDecrement() == capacity)
-                notFull.signal();
-        }
-        void fullyUnlock() {
-            takeLock.unlock();
-            putLock.unlock();
-        }
+            void fullyLock() {
+                putLock.lock();
+                takeLock.lock();
+            }
+            void unlink(Node<E> p, Node<E> trail) {
+                p.item = null;
+                trail.next = p.next;
+                if (last == p)
+                    last = trail;
+                if (count.getAndDecrement() == capacity)
+                    notFull.signal();
+            }
+            void fullyUnlock() {
+                takeLock.unlock();
+                putLock.unlock();
+            }
         ```
         remove方法删除指定的对象同时对putLock和takeLock加锁，因为remove方法删除的数据的位置不确定，为了避免造成并发安全问题，所以需要对2个锁同时加锁
         - `poll()`源码如下：
         ```java
-        public E poll() {
-            final AtomicInteger count = this.count;
-            if (count.get() == 0)
-                return null;
-            E x = null;
-            int c = -1;
-            final ReentrantLock takeLock = this.takeLock;
-            takeLock.lock();
-            try {
-                if (count.get() > 0) {
+            public E poll() {
+                final AtomicInteger count = this.count;
+                if (count.get() == 0)
+                    return null;
+                E x = null;
+                int c = -1;
+                final ReentrantLock takeLock = this.takeLock;
+                takeLock.lock();
+                try {
+                    if (count.get() > 0) {
+                        x = dequeue();
+                        c = count.getAndDecrement();
+                        if (c > 1)
+                            notEmpty.signal();
+                    }
+                } finally {
+                    takeLock.unlock();
+                }
+                if (c == capacity)
+                    signalNotFull();
+                return x;
+            }
+            private E dequeue() {
+                Node<E> h = head;
+                Node<E> first = h.next;
+                h.next = h; // help GC
+                head = first;
+                E x = first.item;
+                first.item = null;
+                return x;
+            }
+            private void signalNotFull() {
+                final ReentrantLock putLock = this.putLock;
+                putLock.lock();
+                try {
+                    notFull.signal();
+                } finally {
+                    putLock.unlock();
+                }
+            }
+        ```
+        - `take()`源码如下：
+        ```java
+            public E take() throws InterruptedException {
+                E x;
+                int c = -1;
+                final AtomicInteger count = this.count;
+                final ReentrantLock takeLock = this.takeLock;
+                takeLock.lockInterruptibly();
+                try {
+                    while (count.get() == 0) {
+                        notEmpty.await();
+                    }
                     x = dequeue();
                     c = count.getAndDecrement();
                     if (c > 1)
                         notEmpty.signal();
+                } finally {
+                    takeLock.unlock();
                 }
-            } finally {
-                takeLock.unlock();
+                if (c == capacity)
+                    signalNotFull();
+                return x;
             }
-            if (c == capacity)
-                signalNotFull();
-            return x;
-        }
-        private E dequeue() {
-            Node<E> h = head;
-            Node<E> first = h.next;
-            h.next = h; // help GC
-            head = first;
-            E x = first.item;
-            first.item = null;
-            return x;
-        }
-        private void signalNotFull() {
-            final ReentrantLock putLock = this.putLock;
-            putLock.lock();
-            try {
-                notFull.signal();
-            } finally {
-                putLock.unlock();
-            }
-        }
-        ```
-        - `take()`源码如下：
-        ```java
-        public E take() throws InterruptedException {
-            E x;
-            int c = -1;
-            final AtomicInteger count = this.count;
-            final ReentrantLock takeLock = this.takeLock;
-            takeLock.lockInterruptibly();
-            try {
-                while (count.get() == 0) {
-                    notEmpty.await();
-                }
-                x = dequeue();
-                c = count.getAndDecrement();
-                if (c > 1)
-                    notEmpty.signal();
-            } finally {
-                takeLock.unlock();
-            }
-            if (c == capacity)
-                signalNotFull();
-            return x;
-        }
         ```
 
 ### LinkedBlockingQueue和ArrayBlockingQueue迥异
