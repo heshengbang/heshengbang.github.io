@@ -7,7 +7,7 @@ tags: Java核心技术36讲笔记
 
 ### Java并发包中的ConcurrentLinkedQueue和LinkedBlockingQueue的区别
 - 通常情况下，并发包下的所有容器都习惯性的被称为并发容器，但是严格来讲，类似ConcurrentLinkedQueue这种“Concurrent”容器才是真正代表并发。
-- Concurrent类型基于lock-free，在常见的多线程访问场景，一般可以提供较高的吞吐量
+- Concurrent类型基于lock-free([参考链接](http://www.cnblogs.com/gaochundong/p/lock_free_programming.html))，在常见的多线程访问场景，一般可以提供较高的吞吐量
 - LinkedBlockingQueue内部则是基于锁，并提供了BlockingQueue的等待性方法
 - java.util.concurrent包提供的容器（Queue/List/Set）、Map，从命名上可以大概区分为Concurrent、CopyOnWrite和BlockingXxx 等三类，同样是线程安全容器，可以简单的认为：
 	- Concurrent类型没有类似CopyOnWrite之类的容器相对较重的修改开销，但是Concurrent也因此无法提供较高的遍历一致性（弱一致性）。也就是说，当迭代器进行遍历的时候，如果Concurrent类型被修改了，迭代器仍然可以继续进行遍历。
