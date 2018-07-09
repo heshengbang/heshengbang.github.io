@@ -404,43 +404,26 @@ public static class SimpleImmutableEntry<K,V> implements Map.Entry<K,V>, java.io
 
 - AbstractMap中的方法大部分和Map接口一样，只是没有Map接口中的默认实现方法，因此被分为四类
 	- 查询操作
-		- `public int size()`
-		  返回此Map有多少个Entry
-        - `public boolean isEmpty()`
-          判断该Map是否为空
-        - `public boolean containsValue(Object value)`
-          判断此类是否包含指定的value
-        - `public boolean containsKey(Object key)`
-          判断此类是否包含指定的key
-        - `public V get(Object key)`
-          获取指定key对应的value，如果没有返回null
+		- `public int size()` 返回此Map有多少个Entry
+        - `public boolean isEmpty()` 判断该Map是否为空
+        - `public boolean containsValue(Object value)` 判断此类是否包含指定的value
+        - `public boolean containsKey(Object key)` 判断此类是否包含指定的key
+        - `public V get(Object key)` 获取指定key对应的value，如果没有返回null
 	- 修改操作
-        - `public V put(K key, V value)`
-          设置key-value键值对，抛出UnsupportedOperationException
-        - `public V remove(Object key)`
-          移除指定key
-        - ``
+        - `public V put(K key, V value)` 设置key-value键值对，抛出UnsupportedOperationException
+        - `public V remove(Object key)` 移除指定key
 	- 批量操作
-        - `public void putAll(Map<? extends K, ? extends V> m)`
-          将指定Map中所有元素放入到此Map中
-        - `public void clear()`
-          清空当前Map中的所有Entry
-        - `public Set<K> keySet()`
-          获取key的集合，该集合中包含了自定义的迭代器
-        - ` public Collection<V> values()`
-          返回所有值的集合，该集合中包含了自定义的迭代器
-        - `public abstract Set<Entry<K, V>> entrySet()`
-          获取Entry的集合
-	- 比较和hashcode
-		- `public boolean equals(Object o) `
-		  判断是否相等
-		- `public int hashCode()`
-		  获取hashcode
-		- `public String toString()`
-		  重写了toString方法
-		- `protected Object clone()`
-		  重写了clone方法，实际上还是用的底层native方法去完成，clone出来的Map它的key集合和value集合都是空
-		- `private static boolean eq(Object o1, Object o2)`
-		  一个私有的工具类方法，判断两个对象是否相等，提供给内部类使用
+        - `public void putAll(Map<? extends K, ? extends V> m)` 将指定Map中所有元素放入到此Map中
+        - `public void clear()` 清空当前Map中的所有Entry
+        - `public Set<K> keySet()` 获取key的集合，该集合中包含了自定义的迭代器
+        - ` public Collection<V> values()` 返回所有值的集合，该集合中包含了自定义的迭代器
+        - `public abstract Set<Entry<K, V>> entrySet()` 获取Entry的集合
+
+	- 重写Object对象的方法
+		- `public boolean equals(Object o) ` 判断是否相等
+		- `public int hashCode()` 获取hashcode
+		- `public String toString()` 重写了toString方法
+		- `protected Object clone()` 重写了clone方法，实际上还是用的底层native方法去完成，clone出来的Map它的key集合和value集合都是空
+		- `private static boolean eq(Object o1, Object o2)` 一个私有的工具类方法，判断两个对象是否相等，提供给内部类使用
 
 - AbstractMap中几乎所有类都来自Map接口，AbstractMap给大部分方法提供了一种默认的实现方式，但也有少部分类没有给实现，而是被声明为abstract，需要实现类自己去定制

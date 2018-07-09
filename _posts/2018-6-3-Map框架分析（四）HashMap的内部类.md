@@ -51,7 +51,6 @@ tags: Java基础
 		- KeySet：HashMap中的key的集合
 		- EntrySet：HashMap中的Entry的集合
 
-
 - 通过HashMap的内部类的结构就非常清晰了。分别是继承自AbstractMap的SimpleEntry和SimpleImmutableEntry，HashMap自己定义的13个内部类大致分成四部分，分别是用作链表节点的Node及其子类用作红黑树节点的TreeNode，集合迭代器HashIterator及其子类KeyIterator、ValueIterator、EntryIterator，并行迭代器HashMapSpliterator及其子类KeySpliterator、ValueSpliterator、EntrySpliterator，Key的集合、value的集合、Entry的集合。
 
 - 如上面的结构示意图所示，HashMap中定义了抽象的迭代器类和并行迭代器，并分别针对Key/Value/Entry三种集合去实现了迭代器和并行迭代器，而EntrySet和KeySet都继承自抽象的AbstractSet，保证了该集合里面元素的唯一性，Values则没有继承自AbstractSet而是AbstractCollection。众所周知，HashMap中的key值是唯一的，而value却可以不是，而Entry包含了key-value，因此也势必是唯一的。联系HashMap的继承关系和特性，依次从四个方面回忆HashMap的内部类，相对就很好记忆了。
@@ -81,11 +80,17 @@ tags: Java基础
             this.next = next;
         }
         // 获取key
-        public final K getKey()        { return key; }
+        public final K getKey() {
+        	return key;
+        }
         // 获取value
-        public final V getValue()      { return value; }
+        public final V getValue() {
+        	return value;
+        }
         // 重写的toString方法
-        public final String toString() { return key + "=" + value; }
+        public final String toString() {
+        	return key + "=" + value;
+        }
         // 获取hashCode的方法。通过key和value的hashCode进行异或运算得到Node的hash值
         public final int hashCode() {
             return Objects.hashCode(key) ^ Objects.hashCode(value);
@@ -111,7 +116,6 @@ tags: Java基础
     }
 ```
 	- 如上源码所示，HashMap.Node中值得关注的只有一个点，即Node求hashcode的方法。调用Objects的方法获取key和value的hash值，然后进行异或运算。事实上，Objects类中的工具类，hashCode()其实也是调用对象本身的Native hashCode()方法去获取hashCode。
-
 
 - [TreeNode，后文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 
@@ -180,24 +184,30 @@ abstract class HashIterator {
 ```java
 final class KeyIterator extends HashIterator
         implements Iterator<K> {
-        public final K next() { return nextNode().key; }
-    }
+        public final K next() {
+        	return nextNode().key;
+        }
+}
 ```
 
 - ValueIterator的源码及注释如下：
 ```java
 final class ValueIterator extends HashIterator
         implements Iterator<V> {
-        public final V next() { return nextNode().value; }
-    }
+        public final V next() {
+        	return nextNode().value;
+        }
+}
 ```
 
 - ValueIterator的源码及注释如下：
 ```java
 final class EntryIterator extends HashIterator
         implements Iterator<Map.Entry<K,V>> {
-        public final Map.Entry<K,V> next() { return nextNode(); }
-    }
+        public final Map.Entry<K,V> next() {
+        	return nextNode();
+        }
+}
 ```
 
 - HashMapSpliterator的源码及注释如下：
@@ -223,7 +233,8 @@ final class EntryIterator extends HashIterator
             this.est = est;
             this.expectedModCount = expectedModCount;
         }
-        final int getFence() { // initialize fence and size on first use
+        // initialize fence and size on first use
+        final int getFence() {
             int hi;
             if ((hi = fence) < 0) {
                 HashMap<K,V> m = map;
@@ -234,7 +245,6 @@ final class EntryIterator extends HashIterator
             }
             return hi;
         }
-
         public final long estimateSize() {
             getFence(); // force init
             return (long) est;
