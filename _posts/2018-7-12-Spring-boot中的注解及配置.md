@@ -30,8 +30,66 @@ tags: Spring
         // 此时myBean就是一个可以使用的实例对象
     ```
 
+- `@Value`
+	- 该注释用于注解属性、方法、构造函数，用于给一个受影响的"变量"一个默认值表达式。
+
 - `@Bean`
 	- @Bean明确地指示了一种产生bean的方法，并且将产生的bean交个spring容器管理，该注解常常配合上面提到的@Configuration使用。@Configuration用于注解一个类，表明当前类会配置一个或多个Bean实例，并将Bean交给spring容器管理。@Bean用于注解其中的方法，表明该方法用于产生了一个Bean实例，并且该Bean实例已经交给了spring容器管理。
+
+- `@ConfigurationProperties`
+	- 该注解用来注解Bean将获取到外部化的配置。如果开发者想绑定一些来自外部配置的属性值(例如，来自application.properties文件的一些属性配置)，即可将该注解添加到一个类上或者被@Bean注解的方法上。例如：
+	```
+    	// 实体对象结构如下
+        public class People {
+            private String name;
+            private Integer age;
+            private List<String> address;
+            private Phone phone;
+        }
+        public class Phone {
+            private String number;
+        }
+        // application.properties中的配置如下
+        com.example.demo.name=${aaa:hi}
+        com.example.demo.age=11
+        com.example.demo.address[0]=北京
+        com.example.demo.address[1]=上海
+        com.example.demo.address[2]=广州
+        com.example.demo.phone.number=1111111
+    ```
+      有两种方式可以使用@ConfigurationProperties来完成外部配置文件的属性注入
+    ```
+        //加在类上,需要和@Component注解,结合使用
+        @Component
+        @ConfigurationProperties(prefix = "com.example.demo")
+        public class People {
+            private String name;
+            private Integer age;
+            private List<String> address;
+            private Phone phone;
+        }
+        // 通过@Bean的方式进行声明
+        @SpringBootApplication
+        public class DemoApplication {
+            @Bean
+            @ConfigurationProperties(prefix = "com.example.demo")
+            public People people() {
+                return new People();
+            }
+            public static void main(String[] args) {
+                SpringApplication.run(DemoApplication.class, args);
+            }
+        }
+    ```
+	- 值得注意的是，该注解和@Value不同，因为标注的是外部属性，所以注解中的参数使用SpEL表达式不会生效。
+	- 该注解中内含的参数value和prefix互为别名，其值均为外部配置文件中定义的键值对中键的某一部分
+
+- `@AliasFor`
+	- 该注解被用来为另一个注解的属性声明别名。
+
+- `@SpringBootConfiguration`
+	- 该注解指示一个类被用来提供Spring boot应用程序（原理类似@Configuration）。该注解可以被用来替换spring标准的@Configuration，这样spring-boot程序就可以自动去寻找配置。
+	- 一个spring-boot应用程序应该只包含一个@SpringBootConfiguration并且大多数常用的spring boot应用程序都将从@SpringBootApplication处继承它。
 
 - `@EnableAutoConfiguration`
 	- 该注解启用spring application Context的自动配置功能，它会猜测并配置成你可能需要的配置。被@EnableAutoConfiguration注解的类的自动配置，通常基于开发者的classpath下的内容和自定义的bean。例如，如果你有tomcat-embedded.jar 在你的classpath下面，你也许想要一个TomcatServletWebServerFactory（除非你已经自定义了一个ServletWebServerFactory）。
