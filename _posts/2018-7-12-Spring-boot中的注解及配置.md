@@ -33,10 +33,6 @@ tags: Spring
 - `@Bean`
 	- @Bean明确地指示了一种产生bean的方法，并且将产生的bean交个spring容器管理，该注解常常配合上面提到的@Configuration使用。@Configuration用于注解一个类，表明当前类会配置一个或多个Bean实例，并将Bean交给spring容器管理。@Bean用于注解其中的方法，表明该方法用于产生了一个Bean实例，并且该Bean实例已经交给了spring容器管理。
 
-- `@SpringBootConfiguration`
-	- 该注解指示一个类被用来提供Spring boot应用程序（原理类似@Configuration）。该注解可以被用来替换spring标准的@Configuration，这样spring-boot程序就可以自动去寻找配置。
-	- 一个spring-boot应用程序应该只包含一个@SpringBootConfiguration并且大多数常用的spring boot应用程序都将从@SpringBootApplication处继承它。
-
 - `@EnableAutoConfiguration`
 	- 该注解启用spring application Context的自动配置功能，它会猜测并配置成你可能需要的配置。被@EnableAutoConfiguration注解的类的自动配置，通常基于开发者的classpath下的内容和自定义的bean。例如，如果你有tomcat-embedded.jar 在你的classpath下面，你也许想要一个TomcatServletWebServerFactory（除非你已经自定义了一个ServletWebServerFactory）。
 	- 如果使用了@SpringBootApplication，应用程序的上下文的自动配置被自动启用，因此再添加该注解是没有额外效果的。原因可以参见@SpringBootApplication注解的构成。
@@ -56,13 +52,95 @@ tags: Spring
         - FilterType.REGEX：使用正则指定
         - FilterType.CUSTOM：使用自定义规则
 
+- `@RestController`
+	- 如果只是使用@RestController注解Controller，则Controller中的方法可以直接返回json数据而无需额外添加@ResponseBody注解，但同时，使用了该注解就无法返回jsp页面或者html，配置的视图解析器 InternalResourceViewResolver将不起作用。return是什么就是什么。
+	- 该注解是一个便捷的注解，它和@SpringBootApplication类似，整合了一般spring mvc项目中模板化的两个注解。从源码中就能看出，使用该注解的作用和同时使用@Controller、@ResponseBody类似，因为该注解本身就被@Controller和@ResponseBody所注解。
+
+- `@GetMapping`
+	- 该注解将通过get方式发送的http请求映射到指定的处理方法上。
+	- 具体来说，@GetMapping是一个复合注释，它的作用类似于@RequestMapping(method = RequestMethod.GET)，是一种快捷的注释方式。
+
+- `@PathVariable`
+	- 该注解表明方法的参数被绑定在URI模板中。在Servlet程序中，它支持@RequestMapping注释的方法。
+	- 用法如下：
+	```
+        @GetMapping("/hello/{name}")
+        public String index(@PathVariable String name) {
+            return "hello! " + name;
+        }
+    ```
+      通过该注释，可以从请求的url中获取到方法所需的参数。
+
+- `@Import`
+	- 该注解用于导入一个或多个被@Configuration注解的配置类。它提供的功能约等于spring xml文件中使用的import元素导入的被@Configuration锁注解的配置类。
+	- 该注解的用法可参见@EnableEurekaServer的源码
+
 - `@SpringBootApplication`
 	- 该注解指示一个类中存在一个或多个被@Bean标注的方法，这些方法被用于初始化、配置并产生Bean实例，该注解同时还帮应用启用自动配置和组件扫描的功能。
 	- 这是一个十分方便的注解，这个注解产生的原因就是spring-boot为了解决模板化开发spring应用而产生，所以spring中模板化的使用注解也应该被一个注解替换。使用@SpringBootApplication注解等效于同时使用了@Configuration、@EnableAutoConfiguration、@ComponentScan。
 
-- `@RestController`
-	- 如果只是使用@RestController注解Controller，则Controller中的方法可以直接返回json数据而无需额外添加@ResponseBody注解，但同时，使用了该注解就无法返回jsp页面或者html，配置的视图解析器 InternalResourceViewResolver将不起作用。return是什么就是什么。
-	- 该注解是一个便捷的注解，它和@SpringBootApplication类似，整合了一般spring mvc项目中模板化的两个注解。从源码中就能看出，使用该注解的作用和同时使用@Controller、@ResponseBody类似，因为该注解本身就被@Controller和@ResponseBody所注解。
+- `@EnableEurekaServer`
+	- 使用该注解可以激活Eureka服务器的相关配置
+	- 该注解的源码如下：
+	```
+        @Target(ElementType.TYPE)
+        @Retention(RetentionPolicy.RUNTIME)
+        @Documented
+        @Import(EurekaServerMarkerConfiguration.class)
+        public @interface EnableEurekaServer {
+
+        }
+    ```
+    - 从源码能看出，该注解导入了EurekaServerMarkerConfiguration这个类，而这个类恰巧就是被@Configuration注解的配置类，这也印证了@Import注解的用法。
+
+- `@EnableDiscoveryClient`
+	- 使用该注解以启用Eureka Discovery客户端。
+	- 该注解的源码如下：
+	```
+        @Target(ElementType.TYPE)
+        @Retention(RetentionPolicy.RUNTIME)
+        @Documented
+        @Inherited
+        @Import(EnableDiscoveryClientImportSelector.class)
+        public @interface EnableDiscoveryClient {
+
+            /**
+             * If true, the ServiceRegistry will automatically register the local server.
+             */
+            boolean autoRegister() default true;
+        }
+    ```
+    - 其中值得重点关注的是通过@Import导入的EnableDiscoveryClientImportSelector配置类，其次是注解的参数autoRegister。
+    - EnableDiscoveryClientImportSelector帮助导入作为DiscoveryClient可能需要的类。
+    - autoRegister默认为true。该参数如果为true，则该注解所标注的服务将被自动的注册到本地的Eureka服务器，如果是false则需要手动注册。
+    - 值得注意的是，该注解通常被用来注解那些会使用 注册在Eureka服务器上的服务 的那些服务。当然，它们自身也会被注册在Eureka服务器上，并且也可能是一个服务提供者。
+
+- `@EnableEurekaClient`
+	- 该注解很便捷的帮助客户端启用Eureka Discovery的配置，使用这个注解可以帮助你发现并确定你想要使用的Eureka服务。它所做的就是打开Discovery功能，并使用自动配置的方式去找开发者可用的Eurka服务类。
+	- 该注解的源码如下：
+	```
+        @Target(ElementType.TYPE)
+        @Retention(RetentionPolicy.RUNTIME)
+        @Documented
+        @Inherited
+        @EnableDiscoveryClient
+        public @interface EnableEurekaClient {
+
+        }
+    ```
+    - 从源码中就能看出，该注解的定义中也被@EnableDiscoveryClient所标注，这意味着，它所提供的功能和@EnableDiscoveryClient其实有很大一部分类似。但是，它作为一个单独的注解存在必有其意义，那就是用来注解服务提供者。使用这个注解标注的类，会注册在Eureka服务器上，但是它们本身并不会去消费Eureka服务器上注册的那些服务。
+
+- `@SpringBootConfiguration`
+	- 该注解指示一个类被用来提供Spring boot应用程序（原理类似@Configuration）。该注解可以被用来替换spring标准的@Configuration，这样spring-boot程序就可以自动去寻找配置。
+	- 一个spring-boot应用程序应该只包含一个@SpringBootConfiguration并且大多数常用的spring boot应用程序都将从@SpringBootApplication处继承它。
+
+- `@EnableFeignClients`
+	- 该注解将会扫描代码中被@FeignClient 注解的接口，这些接口被声明为Feign Client。配置组件扫描指令，可以直接使用@Configuration注解某个类来完成。
+	- 该注解在定义是通过@Import注解导入了FeignClientsRegistrar类来处理那些被扫描使用了@FeignClient注解的类，将它们注册到FeignClient列表中。
+
+- `@FeignClient`
+	- 当某个接口使用了该注解后，那就应该有一个Restful风格的客户端被创建。可以通过配置@EnableFeignClients来讲该注解标注的接口注册到FeignClient列表中，在Eureka Server中去寻找对应的服务，并且将请求路径映射到被@FeignClient标注的接口上。其他地方调用该注解标注的接口，该注解将通过Eureka Server使用restful风格，找到对应的服务上面的处理方法去处理，然后返回结果或者直接结束。
+	- 该注解中有两个参数value/name，这两个参数虽然为不同的参数，但是它们互为别名，因此其实是同一个东西。这个参数用来指定外部服务，即用来真实处理接口中方法的远程服务的名字。这个名字在spring-boot的application.properties中被定义，而这个服务通常被注册在Eureka之类的服务注册发现服务器上。
 
 ### 配置
 
