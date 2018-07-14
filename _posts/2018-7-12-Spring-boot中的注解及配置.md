@@ -36,6 +36,9 @@ tags: Spring
 - `@Bean`
 	- @Bean明确地指示了一种产生bean的方法，并且将产生的bean交个spring容器管理，该注解常常配合上面提到的@Configuration使用。@Configuration用于注解一个类，表明当前类会配置一个或多个Bean实例，并将Bean交给spring容器管理。@Bean用于注解其中的方法，表明该方法用于产生了一个Bean实例，并且该Bean实例已经交给了spring容器管理。
 
+- `@RefreshScope`
+	- 被该注解标注的类对应的bean将在运行时被刷新。被这种方式注解的bean可以在运行时被刷新，并且任何使用它们的组件将在下一次方法调用中获得新的bean实例，该实例已经完全初始化并注入所有依赖项。
+
 - `@ConfigurationProperties`
 	- 该注解用来注解Bean将获取到外部化的配置。如果开发者想绑定一些来自外部配置的属性值(例如，来自application.properties文件的一些属性配置)，即可将该注解添加到一个类上或者被@Bean注解的方法上。例如：
 	```
@@ -87,13 +90,12 @@ tags: Spring
 - `@AliasFor`
 	- 该注解被用来为另一个注解的属性声明别名。
 
-- `@SpringBootConfiguration`
-	- 该注解指示一个类被用来提供Spring boot应用程序（原理类似@Configuration）。该注解可以被用来替换spring标准的@Configuration，这样spring-boot程序就可以自动去寻找配置。
-	- 一个spring-boot应用程序应该只包含一个@SpringBootConfiguration并且大多数常用的spring boot应用程序都将从@SpringBootApplication处继承它。
-
 - `@EnableAutoConfiguration`
 	- 该注解启用spring application Context的自动配置功能，它会猜测并配置成你可能需要的配置。被@EnableAutoConfiguration注解的类的自动配置，通常基于开发者的classpath下的内容和自定义的bean。例如，如果你有tomcat-embedded.jar 在你的classpath下面，你也许想要一个TomcatServletWebServerFactory（除非你已经自定义了一个ServletWebServerFactory）。
 	- 如果使用了@SpringBootApplication，应用程序的上下文的自动配置被自动启用，因此再添加该注解是没有额外效果的。原因可以参见@SpringBootApplication注解的构成。
+
+- `@RequestBody`
+	- 该注解表明一个方法的参数应该被绑定在web请求的content里面，根据请求的内容和类型来解析方法参数。此外，可以通过@Valid注解来验证参数的正确性。
 
 - `@ComponentScan`
 	- 该注解会自动扫描包路径下面的所有被@Controller、@Service、@Repository、@Component 注解的类。
@@ -118,6 +120,10 @@ tags: Spring
 	- 该注解将通过get方式发送的http请求映射到指定的处理方法上。
 	- 具体来说，@GetMapping是一个复合注释，它的作用类似于@RequestMapping(method = RequestMethod.GET)，是一种快捷的注释方式。
 
+- `@PostMapping`
+	- 该注解将通过post方式发送的http请求映射到指定的处理方法上。
+	- 具体来说，@PostMapping是一个复合注释，它的作用类似于@RequestMapping(method = RequestMethod.POST)，是一种快捷的注释方式。
+
 - `@PathVariable`
 	- 该注解表明方法的参数被绑定在URI模板中。在Servlet程序中，它支持@RequestMapping注释的方法。
 	- 用法如下：
@@ -136,6 +142,10 @@ tags: Spring
 - `@SpringBootApplication`
 	- 该注解指示一个类中存在一个或多个被@Bean标注的方法，这些方法被用于初始化、配置并产生Bean实例，该注解同时还帮应用启用自动配置和组件扫描的功能。
 	- 这是一个十分方便的注解，这个注解产生的原因就是spring-boot为了解决模板化开发spring应用而产生，所以spring中模板化的使用注解也应该被一个注解替换。使用@SpringBootApplication注解等效于同时使用了@Configuration、@EnableAutoConfiguration、@ComponentScan。
+
+- `@SpringBootConfiguration`
+	- 该注解指示一个类被用来提供Spring boot应用程序（原理类似@Configuration）。该注解可以被用来替换spring标准的@Configuration，这样spring-boot程序就可以自动去寻找配置。
+	- 一个spring-boot应用程序应该只包含一个@SpringBootConfiguration并且大多数常用的spring boot应用程序都将从@SpringBootApplication处继承它。
 
 - `@EnableEurekaServer`
 	- 使用该注解可以激活Eureka服务器的相关配置
