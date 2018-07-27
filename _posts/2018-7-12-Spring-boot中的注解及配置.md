@@ -210,6 +210,10 @@ tags: Spring
 	- 当某个接口使用了该注解后，那就应该有一个Restful风格的客户端被创建。可以通过配置@EnableFeignClients来讲该注解标注的接口注册到FeignClient列表中，在Eureka Server中去寻找对应的服务，并且将请求路径映射到被@FeignClient标注的接口上。其他地方调用该注解标注的接口，该注解将通过Eureka Server使用restful风格，找到对应的服务上面的处理方法去处理，然后返回结果或者直接结束。
 	- 该注解中有两个参数value/name，这两个参数虽然为不同的参数，但是它们互为别名，因此其实是同一个东西。这个参数用来指定外部服务，即用来真实处理接口中方法的远程服务的名字。这个名字在spring-boot的application.properties中被定义，而这个服务通常被注册在Eureka之类的服务注册发现服务器上。
 
+- `@Order`
+- `@ControllerAdvice`
+- `@ExceptionHandler`
+
 ### 配置
 
 
