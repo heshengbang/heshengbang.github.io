@@ -211,8 +211,11 @@ tags: Spring
 	- 该注解中有两个参数value/name，这两个参数虽然为不同的参数，但是它们互为别名，因此其实是同一个东西。这个参数用来指定外部服务，即用来真实处理接口中方法的远程服务的名字。这个名字在spring-boot的application.properties中被定义，而这个服务通常被注册在Eureka之类的服务注册发现服务器上。
 
 - `@Order`
+	- 该注解定义了组件的加载顺序，最常用的方法是用来调整配置类的加载顺序。@Order标记从spring 2.0出现，但是在spring 4.0之前，@Order标记只支持AspectJ的切面排序。spring 4.0对@Order做了增强，它开始支持对装载在诸如Lists和Arrays容器中的自动包装（auto-wired）组件的排序。
 - `@ControllerAdvice`
+	- 该注解是增强版的@Component，用于定义@ExceptionHandler，@InitBinder和@ModelAttribute方法，适用于所有使用@RequestMapping类。该注解常被用来处理全局的错误异常拦截，从名字都能看出它用到了切面相关的内容。
 - `@ExceptionHandler`
+	- 该注解常常配合@ControllerAdvice使用，@ControllerAdvice标注在类上，而@ExceptionHandler标注在方法上，用于统一处理某一类异常，从而能够减少代码重复率和复杂度。
 
 ### 配置
 
