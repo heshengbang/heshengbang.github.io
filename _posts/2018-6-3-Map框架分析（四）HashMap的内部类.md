@@ -13,28 +13,28 @@ tags: Java基础
 本文基于JDK 1.8。
 
 ### 相关知识点
-- [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
+- [Map](https://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
 	- 内部接口
 	- 方法
-- [AbstractMap](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+- [AbstractMap](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
 	- 内部类
 	- 方法
 - HashMap
-	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
+	- [HashMap中的内部类](https://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
+		- [HashMap的内部类TreeNode](https://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
-		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
-		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
-            - [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
-            - [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
-            - [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
+		- [HashMap中的成员变量](https://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
+		- [HashMap中的方法](https://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
+            - [HashMap的put方法](https://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
+            - [HashMap的resize方法](https://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
+            - [HashMap的树化与反树化](https://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
 
 ### 简述
 - HashMap中一共有15个内部类，其中13个是自己独有的，另外2个是继承自AbstractMap。它们的关系如下图所示（红线）
 ![HashMap中的内部类](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/javabasic/HashMap源码分析/HashMap_InnerClass.png)
 	- 继承自Abstract的内部类在HashMap中并未直接使用到，个人感觉是作为一种继承AbstractMap的默认方法实现时的一种附属产品，也可能是作为一种潜在的拓展。
-		- [SimpleEntry，前文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
-		- [SimpleImmutableEntry，前文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+		- [SimpleEntry，前文有介绍，点击查看](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+		- [SimpleImmutableEntry，前文有介绍，点击查看](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
 
 	- HashMap中自己定义了十三个内部类，分别是：
 		- Node：基于hash的节点，被大多数Map.Entry的实现类所使用。如下面的TreeNode、LinkedHashMap的Entry
@@ -56,9 +56,9 @@ tags: Java基础
 - 如上面的结构示意图所示，HashMap中定义了抽象的迭代器类和并行迭代器，并分别针对Key/Value/Entry三种集合去实现了迭代器和并行迭代器，而EntrySet和KeySet都继承自抽象的AbstractSet，保证了该集合里面元素的唯一性，Values则没有继承自AbstractSet而是AbstractCollection。众所周知，HashMap中的key值是唯一的，而value却可以不是，而Entry包含了key-value，因此也势必是唯一的。联系HashMap的继承关系和特性，依次从四个方面回忆HashMap的内部类，相对就很好记忆了。
 
 ### 内部类解析
-- [SimpleEntry，前文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+- [SimpleEntry，前文有介绍，点击查看](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
 
-- [SimpleImmutableEntry，前文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+- [SimpleImmutableEntry，前文有介绍，点击查看](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
 
 - Node源码及注释如下：
 ```java
@@ -117,7 +117,7 @@ tags: Java基础
 ```
 	- 如上源码所示，HashMap.Node中值得关注的只有一个点，即Node求hashcode的方法。调用Objects的方法获取key和value的hash值，然后进行异或运算。事实上，Objects类中的工具类，hashCode()其实也是调用对象本身的Native hashCode()方法去获取hashCode。
 
-- [TreeNode，后文有介绍，点击查看](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
+- [TreeNode，后文有介绍，点击查看](https://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 
 - HashIterator的源码及注释如下：
 ```java

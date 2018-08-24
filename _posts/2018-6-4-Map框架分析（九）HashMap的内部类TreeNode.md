@@ -14,25 +14,25 @@ tags: Java基础
 本文基于JDK 1.8。在阅读源码的过程中，发现自己很多地方不能自洽，应该是对源码的理解有很大问题，本文自做记录不作参考，切勿以本文作参考！
 
 ### 相关知识点
-- [Map](http://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
+- [Map](https://www.heshengbang.tech/2018/06/Map框架分析-二-Map接口分析/)
 	- 内部接口
 	- 方法
-- [AbstractMap](http://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
+- [AbstractMap](https://www.heshengbang.tech/2018/06/Map框架分析-三-AbstractMap抽象类分析/)
 	- 内部类
 	- 方法
 - HashMap
-	- [HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](http://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
+	- [HashMap中的内部类](https://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
+		- [HashMap的内部类TreeNode](https://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
-		- [HashMap中的成员变量](http://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
-		- [HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
-            - [HashMap的put方法](http://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
-            - [HashMap的resize方法](http://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
-            - [HashMap的树化与反树化](http://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
+		- [HashMap中的成员变量](https://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
+		- [HashMap中的方法](https://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap中的方法/)
+            - [HashMap的put方法](https://www.heshengbang.tech/2018/06/Map框架分析-六-HashMap的put方法/)
+            - [HashMap的resize方法](https://www.heshengbang.tech/2018/06/Map框架分析-七-HashMap的resize方法/)
+            - [HashMap的树化与反树化](https://www.heshengbang.tech/2018/06/Map框架分析-八-HashMap的树化与反树化/)
 
 
 #### 简述
-- TreeNode的继承关系有点曲线救国的味道。因为HashMap.TreeNode继承自LinkedHashMap.Entry，而LinkedHashMap.Entry继承自HashMap.Node，所以在[HashMap中的内部类](http://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)的简述中我直接将TreeNode归类于Node的子类。TreeeNode之所以选择这样曲折的继承关系，是为了方便HashMap.TreeNode以后可以既作为红黑树的树节点，又可以保持自己的双向链表结构。
+- TreeNode的继承关系有点曲线救国的味道。因为HashMap.TreeNode继承自LinkedHashMap.Entry，而LinkedHashMap.Entry继承自HashMap.Node，所以在[HashMap中的内部类](https://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)的简述中我直接将TreeNode归类于Node的子类。TreeeNode之所以选择这样曲折的继承关系，是为了方便HashMap.TreeNode以后可以既作为红黑树的树节点，又可以保持自己的双向链表结构。
 - TreeNode是一个将红黑树的概念融合到类设计中的类，虽然它只是作为HashMap的内部类存在，但是它的内容依然充实。
 
 ### TreeNode的成员变量
@@ -530,7 +530,7 @@ final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             // TreeNode保存了两种结构，一种是链表，持有前后节点的引用
             // 一种是红黑树，持有左右字数以及父节点的引用。
             // 此处遍历是通过链表结构进行遍历。
-            // 扩容以后，链表的节点将被分为两部分【这一部分的原理见[HashMap中的方法](http://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)扩展部分】
+            // 扩容以后，链表的节点将被分为两部分【这一部分的原理见[HashMap中的方法](https://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)扩展部分】
             // 就像上面的例子一样，扩容后，原本在一个链表的节点会被分为两部分
             // 一部分的索引不变，另一部分的索引变成了之前的位与结果+索引
             for (TreeNode<K,V> e = b, next; e != null; e = next) {

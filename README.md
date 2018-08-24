@@ -6,7 +6,7 @@
 
 # 使用jekyll搭建个人博客教程
 
-[Jekyll搭建个人博客](http://www.heshengbang.tech/2017/11/jekyll搭建个人博客/)  :  使用Jekyll搭建个人博客的教程
+[Jekyll搭建个人博客](https://www.heshengbang.tech/2017/11/jekyll搭建个人博客/)  :  使用Jekyll搭建个人博客的教程
 
 # jekyll主题
 

@@ -14,7 +14,7 @@ tags: Java核心技术36讲笔记
 
 - 所谓锁的升级、降级，就是 JVM 优化 synchronized 运行的机制，当 JVM 检测到不同的竞争状况时，会自动切换到适合的锁实现，这种切换就是锁的升级、降级。
 
-- 当没有竞争出现时，默认会使用偏斜锁。JVM 会利用 CAS 操作（compare and swap），在对象头上的 Mark Word 部分设置线程 ID（这一部分内容可参见我的另外一篇文章[链接](http://www.heshengbang.tech/2018/05/Java的synchronized关键字/)。简单来说，是对象头中的mark word字段中，锁的状态为偏向锁时，会存放线程ID），以表示这个对象偏向于当前线程，所以并不涉及真正的互斥锁。这样做的假设是基于在很多应用场景中，大部分对象生命周期中最多会被一个线程锁定，使用偏斜锁可以降低无竞争开销。
+- 当没有竞争出现时，默认会使用偏斜锁。JVM 会利用 CAS 操作（compare and swap），在对象头上的 Mark Word 部分设置线程 ID（这一部分内容可参见我的另外一篇文章[链接](https://www.heshengbang.tech/2018/05/Java的synchronized关键字/)。简单来说，是对象头中的mark word字段中，锁的状态为偏向锁时，会存放线程ID），以表示这个对象偏向于当前线程，所以并不涉及真正的互斥锁。这样做的假设是基于在很多应用场景中，大部分对象生命周期中最多会被一个线程锁定，使用偏斜锁可以降低无竞争开销。
 
 - 在对象头中，mark word占1字节，32位。其中有2位表示锁标志位:
 	- 00表示轻量级锁
@@ -33,7 +33,7 @@ tags: Java核心技术36讲笔记
 	- StampedLock(不支持重入)
 
 ### 关键点
-- [Java的synchronized关键字](http://www.heshengbang.tech/2018/05/Java的synchronized关键字/)
+- [Java的synchronized关键字](https://www.heshengbang.tech/2018/05/Java的synchronized关键字/)
 - `java.util.concurrent.lock`包下的其他类型的锁，至少需要了解除了ReentrantLock之外的其他显示锁，及其基本使用方式
 
 ### 锁
