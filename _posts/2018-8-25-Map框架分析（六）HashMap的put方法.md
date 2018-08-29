@@ -190,8 +190,140 @@ tags: Java基础
 以上是整个put方法最直接的步骤，与其强相关的还有两个方法，将在接下来详细解释其基本步骤及逻辑。
 
 ### TreeNode#putTreeVal
-- `TreeNode#putTreeVal`是TreeNode的成员方法，意即插入新的树节点到红黑树上
+- `TreeNode#putTreeVal`是TreeNode的成员方法，意即插入新的树节点到红黑树上，在方法上面有JDK给出的注释"Tree version of putVal."，该注释表达的意思非常明显。
+- 方法的源码如下：
+```java
+	final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab, int h, K k, V v) {
+            Class<?> kc = null;
+            boolean searched = false;
+            TreeNode<K,V> root = (parent != null) ? root() : this;
+            for (TreeNode<K,V> p = root;;) {
+                int dir, ph; K pk;
+                if ((ph = p.hash) > h)
+                    dir = -1;
+                else if (ph < h)
+                    dir = 1;
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    return p;
+                else if ((kc == null &&
+                          (kc = comparableClassFor(k)) == null) ||
+                         (dir = compareComparables(kc, k, pk)) == 0) {
+                    if (!searched) {
+                        TreeNode<K,V> q, ch;
+                        searched = true;
+                        if (((ch = p.left) != null &&
+                             (q = ch.find(h, k, kc)) != null) ||
+                            ((ch = p.right) != null &&
+                             (q = ch.find(h, k, kc)) != null))
+                            return q;
+                    }
+                    dir = tieBreakOrder(k, pk);
+                }
 
+                TreeNode<K,V> xp = p;
+                if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    Node<K,V> xpn = xp.next;
+                    TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                    if (dir <= 0)
+                        xp.left = x;
+                    else
+                        xp.right = x;
+                    xp.next = x;
+                    x.parent = x.prev = xp;
+                    if (xpn != null)
+                        ((TreeNode<K,V>)xpn).prev = x;
+                    moveRootToFront(tab, balanceInsertion(root, x));
+                    return null;
+                }
+            }
+        }
+```
+方法的基本逻辑就是遍历红黑树，比对参数key/value和树节点的哈希值和Key，如果相同就表示找到了，返回节点的引用，如果没有找到就插入节点，然后调整树结构
+
+- 方法的参数有五个
+	- `HashMap<K,V> map` 是指红黑树所在的HashMap实例
+	- `Node<K,V>[] tab` 是指红黑树头结点所在的哈希桶数组
+	- h是指参数key对应的哈希值，哈希值的算法上面有，这里不赘述
+	- K是指参数key
+	- V是指参数value
+
+- 详细步骤
+	- 获取节点所在红黑树的根节点，代码如下：
+	```java
+    	TreeNode<K,V> root = (parent != null) ? root() : this;
+    ```
+      这段代码最终的目的是获取节点所在的红黑树的根节点，它为了达成这个目的，用三目运算符来完成操作，判断这个节点是否有父节点：
+		- 如果有父节点，则它不是自己所在的红黑树的根节点
+		- 如果它的父节点为null，则它自己就可能是所在的红黑树的根节点。
+	- 无论上一步的具体情况如何，最终都可以获取到节点所在的根节点。以根节点为起点开始遍历红黑树
+	- 树节点的哈希值和参数哈希值比较，代码如下：
+	```
+    	int dir, ph; K pk;
+		if ((ph = p.hash) > h)
+			dir = -1;
+		else if (ph < h)
+			dir = 1;
+		else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+			return p;
+    ```
+    这段代码实现的主要逻辑是：
+    	- 树节点的哈希值比参数哈希值大，则dir = -1，这意味着接下来，遍历会进入树节点的左子树
+    	- 树节点的哈希值比参数哈希值小，则dir = 1，这意味着接下来，遍历会进入树节点的右子树
+    	- 倘若树节点的哈希值和参数哈希值大小相等，同时树节点的key和参数key要么是同一个对象（==），要么值相等（equal），则此时是找到了参数key/value中的key已存在HashMap中，即containKey返回true，此时直接返回找到的树节点
+    - 排出上面三种情况，其实还有另外一种情况，但这种情况比较复杂，所以单独拎出来说，代码如下：
+    ```
+        else if ((kc == null && (kc = comparableClassFor(k)) == null) || (dir = compareComparables(kc, k, pk)) == 0) {
+            if (!searched) {
+                TreeNode<K,V> q, ch;
+                searched = true;
+                if (((ch = p.left) != null && (q = ch.find(h, k, kc)) != null) || ((ch = p.right) != null && (q = ch.find(h, k, kc)) != null))
+                    return q;
+            }
+            dir = tieBreakOrder(k, pk);
+        }
+    ```
+	当程序运行到这段代码时，只能说明一个问题，树节点的哈希值和参数哈希值相等，但是树节点的key和参数key又不是同一个类型的变量（因此无法比较），因此采用了以下逻辑：
+    	- 如果参数key的类型没有实现Comparable接口，进入条件代码块
+    	- 如果参数key的类型实现了Comparable接口
+    		- 判断树节点的类型是否实现了Comparable接口，如果没实现则进入条件代码块，如果实现了则参数key和树节点key进行比较，相等则进入代码块，不相等则dir会得到一个非0数字，下一步根据这个非0数字决定继续遍历左子树还是右子树
+    	- 进入条件体类有两种情况，参数key没有实现Comparable接口或者树节点key没有实现Comparable接口
+    	- 在上述两种情况满足其一或者两者皆满足的情况下，根据参数哈希值，参数key，参数key的类型，在树节点的左子树中执行一次搜索，没找到就在右子树中执行搜索，如果找到符合条件的节点就返回
+    	- 如果上一步依然没有找到节点，此时就只有采用红黑树寻找比较中的最后的手段
+    		- 如果参数key和树节点任意一个为null，就采用System类的`identityHashCode`方法获取到一个哈希值，为null的key的哈希值为0，因此会比较出一个结果
+    		- 或者它们俩的类名相等，也采用System类的`identityHashCode`方法获取到一个哈希值，该方法是native的，不同的Object一定会求出不同的哈希值，然后对哈希值进行比较，返回比较结果
+    		- 如果从树节点key和参数key的类名比较出了大小，则直接返回该比较结果
+    	- 上一步的结果，如果小于等于0就转向左子树遍历，如果大于等于0就转向右子树继续遍历
+    	- 需要说明的是，如果程序运行到这段代码的时候，哈希值和树节点是相等的，但是key无法比较，因此这种情况下，很大概率是需要新建一个树节点，然后对红黑树进行再平衡调整
+    - 当上一步没有返回节点并结束程序时，这意味着程序将转向左子树或者右子树继续遍历，但是在遍历前需要判断该转向的子树，并判断子树是否为null，如果为null就需要创建节点，如果不为null就进行下一轮比较。代码如下：
+    ```java
+    	if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    Node<K,V> xpn = xp.next;
+                    TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                    if (dir <= 0)
+                        xp.left = x;
+                    else
+                        xp.right = x;
+                    xp.next = x;
+                    x.parent = x.prev = xp;
+                    if (xpn != null)
+                        ((TreeNode<K,V>)xpn).prev = x;
+                    moveRootToFront(tab, balanceInsertion(root, x));
+                    return null;
+                }
+    ```
+    这段代码里面的基本逻辑是：
+    	- 判定该继续遍历的是左子树还是右子树
+    	- 子树的节点是否为null
+    		- 如果不为null，就执行新一轮的比较
+    	- 如果为null，就先创建树节点
+    	- 完善节点的前（pre）后(next)关系
+    	- 完善新建节点与父节点的关系，父节点与新建节点的关系
+    	- 将新建树节点平衡插入到红黑树中
+    	- 将根节点移动到树节点的链表关系的最前面
+    	- 返回null
+
+- 分析完代码逻辑后，我们基本搞清楚了putTreeVal()方法的逻辑，知道它有两种返回，一个是key相同并已经存在的树节点，一个是新建树节点会返回null，根据我们分析的putVal()方法的逻辑来看，返回的结果最终会被使用到用于判断是否节点已经存在，节点存在的情况下是否需要用新值替换旧值。
+- 该方法强相关的三个树节点的成员方法是：`moveRootToFront()`，`balanceInsertion` 如果有时间建议好好再去分析这两个方法的逻辑，如果不想自己分析，可参考本文顶部的连接中TreeNode的相关内容
 
 ### treeifyBin
 - treeifyBin意即将<b>大于等于</b>树化临界值的链表转换为红黑树
