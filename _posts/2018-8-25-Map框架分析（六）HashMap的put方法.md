@@ -190,6 +190,7 @@ tags: Java基础
 以上是整个put方法最直接的步骤，与其强相关的还有两个方法，将在接下来详细解释其基本步骤及逻辑。
 
 ### TreeNode#putTreeVal
+- TreeNode是HashMap的内部类，继承自LinkedHashMap.Entry，而LinkedHashMap.Entry又继承自HashMap.Node，这么做的目的是方便LinkedHashMap继承和扩展HashMap的功能，如果觉得绕，可以暂时认为TreeNode继承自HashMap.Node
 - `TreeNode#putTreeVal`是TreeNode的成员方法，意即插入新的树节点到红黑树上，在方法上面有JDK给出的注释"Tree version of putVal."，该注释表达的意思非常明显。
 - 方法的源码如下：
 ```java
@@ -329,4 +330,73 @@ tags: Java基础
 - 该方法强相关的三个树节点的成员方法是：`moveRootToFront()`，`balanceInsertion` 如果有时间建议好好再去分析这两个方法的逻辑，如果不想自己分析，可参考本文顶部的连接中TreeNode的相关内容
 
 ### treeifyBin
-- treeifyBin意即将<b>大于等于</b>树化临界值的链表转换为红黑树
+- treeifyBin作用是将<b>大于等于</b>树化临界值的链表转换为红黑树，方法之上有JDK给出的注释：
+> Replaces all linked nodes in bin at index for given hash unless table is too small, in which case resizes instead.  
+
+- 方法源码如下：
+```java
+	final void treeifyBin(Node<K,V>[] tab, int hash) {
+        int n, index; Node<K,V> e;
+        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+            resize();
+        else if ((e = tab[index = (n - 1) & hash]) != null) {
+            TreeNode<K,V> hd = null, tl = null;
+            do {
+                TreeNode<K,V> p = replacementTreeNode(e, null);
+                if (tl == null)
+                    hd = p;
+                else {
+                    p.prev = tl;
+                    tl.next = p;
+                }
+                tl = p;
+            } while ((e = e.next) != null);
+            if ((tab[index] = hd) != null)
+                hd.treeify(tab);
+        }
+    }
+```
+可以看出方法逻辑不是特别扶助，一共也就二十行不到。方法一共有两个参数，一个是哈希桶数组，另一个是哈希值。通过哈希值定位到哈希桶数组上的具体哈希桶，然后通过哈希桶的头结点，对连接在其上的节点进行操作。
+
+- 详细步骤
+	- 判定哈希桶数组是否为null或者哈希桶数组的当前大小，是否小于最小树化临界点，如果满足其中一个条件则进行扩容。源码如下：
+	```java
+        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+                resize();
+    ```
+    个人觉得，这里的第一个判断条件是完全没必要的，至少在HashMap中调用treeifyBin的地方都曾判断过哈希桶数组的大小，并根据是否为空，决定是否扩容。但从另一个角度来说，作为JDK多做一次校验不过是几行机器码，不会影响执行效率，但是可以避免某些极端情况下的风险，也方便以后的扩展（treeifyBin有final修饰符，没有扩展的可能性/xk）。
+		- `MIN_TREEIFY_CAPACITY`在HashMap中被定义为64 —— `static final int MIN_TREEIFY_CAPACITY = 64;`
+		- 这部分代码中提到的resize()方法在HashMap中也是一个重量级的方法函数，这里不展开写，后面会有专门的篇章来写它，开发者如果觉得十分好奇，可以先自己去看看源码，试着理解一下，如果觉得逻辑复杂（实际上并不，只不过使用了众多默认初始量），可以辅以我文章顶部的链接服用。
+	- 上一部分代码执行完毕后，哈希桶数组肯定不会为null
+	- 判定参数哈希值，在参数哈希桶数组对应的索引位置是否为null，如果为null则结束方法，如果不为null，则进行程序下一步执行
+	- 这一步将参数哈希值在哈希桶数组上对应的哈希桶的节点捞出来，以它为头结点，开始遍历，将所有链表节点转换为树节点，源码如下：
+	```
+    	do {
+        	TreeNode<K,V> p = replacementTreeNode(e, null);
+            if (tl == null)
+            	hd = p;
+            else {
+                p.prev = tl;
+                tl.next = p;
+            }
+            tl = p;
+        } while ((e = e.next) != null);
+    ```
+		- 这段代码先将哈希桶中的节点转换为树节点。前面有提到过，TreeNode实际上是继承自Node，因此这部转换其实毫无难度，就是将Node的属性值赋给TreeNode继承自Node的属性。
+		```java
+        	TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
+                return new TreeNode<>(p.hash, p.key, p.value, next);
+            }
+        ```
+		- 判断转换后的树节点是否有pre节点：
+			- 如果没有就将其当做根节点
+			- 如果有pre节点，就将转换后的树节点和pre节点建立关联关系（即互相将其指为prev/next节点）
+		- 将转换后的树节点暂存起来，作为下一次遍历的pre节点
+		- 链表通过next，找到下一个节点，继续将Node转换为TreeNode
+	- 程序执行完上一部分代码后，以Node方式组织成的链表，已完全转换为TreeNode并以prev/next关联起来，并且也找到了TreeNode最前面的节点。值得注意的是，此时的它们虽然都是TreeNode但是它们都以链表的形式存在，并没有构建出树形结构。
+	- 判断TreeNode形成的链表中最前面的那个节点，是否为null
+		- 如果为null，结束方法执行
+		- 如果不为null，就调用它的treeify方法
+
+- 从源码中可以看出，该方法并没有执行真正的构建红黑树的操作，而只是简单的将Node链表转换为TreeNode链表，然后用TreeNode的头结点调用treeify方法去构建红黑树。
+- 和treeifyBin强相关的两个方法分别是`resize`，`TreeNode#treeify`，其中`TreeNode#treeify`完成了将TreeNode链表转换为红黑树的操作，相对更重要一点，有兴趣的可以去了解一下。
