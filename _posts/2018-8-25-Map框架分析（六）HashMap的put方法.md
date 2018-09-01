@@ -21,7 +21,7 @@ tags: Java基础
 	- 方法
 - HashMap
 	- [HashMap中的内部类](https://www.heshengbang.tech/2018/06/Map框架分析-四-HashMap的内部类/)
-		- [HashMap的内部类TreeNode](https://www.heshengbang.tech/2018/06/Map框架分析（九）HashMap的内部类TreeNode/)
+		- [HashMap的内部类TreeNode](https://www.heshengbang.tech/2018/06/Map框架分析-九-HashMap的内部类TreeNode/)
 	- HashMap中的方法和成员变量
 		- [HashMap中的成员变量](https://www.heshengbang.tech/2018/06/Map框架分析-十-HashMap中的成员变量/)
 		- [HashMap中的方法](https://www.heshengbang.tech/2018/06/Map框架分析-五-HashMap的方法/)
@@ -187,7 +187,7 @@ tags: Java基础
 	- return null;结束putVal方法，也结束整个put方法
 
 
-以上是整个put方法最直接的步骤，与其强相关的还有两个方法，将在接下来详细解释其基本步骤及逻辑。
+以上是整个put方法最直接的步骤，与其强相关的还有两个方法，分别是：`TreeNode#putTreeVal`和`treeifyBin`，将在接下来详细解释其基本步骤及逻辑。
 
 ### TreeNode#putTreeVal
 - TreeNode是HashMap的内部类，继承自LinkedHashMap.Entry，而LinkedHashMap.Entry又继承自HashMap.Node，这么做的目的是方便LinkedHashMap继承和扩展HashMap的功能，如果觉得绕，可以暂时认为TreeNode继承自HashMap.Node
@@ -332,6 +332,7 @@ tags: Java基础
 ### treeifyBin
 - treeifyBin作用是将<b>大于等于</b>树化临界值的链表转换为红黑树，方法之上有JDK给出的注释：
 > Replaces all linked nodes in bin at index for given hash unless table is too small, in which case resizes instead.  
+这段注释可以理解为，使用TreeNode替换给定哈希值在哈希桶数组中对应的哈希桶中的Node，除非哈希桶数组太小，因为那样还会导致扩容。
 
 - 方法源码如下：
 ```java
@@ -371,22 +372,22 @@ tags: Java基础
 	- 判定参数哈希值，在参数哈希桶数组对应的索引位置是否为null，如果为null则结束方法，如果不为null，则进行程序下一步执行
 	- 这一步将参数哈希值在哈希桶数组上对应的哈希桶的节点捞出来，以它为头结点，开始遍历，将所有链表节点转换为树节点，源码如下：
 	```
-    	do {
-        	TreeNode<K,V> p = replacementTreeNode(e, null);
-            if (tl == null)
-            	hd = p;
-            else {
-                p.prev = tl;
-                tl.next = p;
-            }
-            tl = p;
-        } while ((e = e.next) != null);
+	do {
+    	TreeNode<K,V> p = replacementTreeNode(e, null);
+        if (tl == null)
+        	hd = p;
+        else {
+        	p.prev = tl;
+            tl.next = p;
+        }
+        tl = p;
+    } while ((e = e.next) != null);
     ```
 		- 这段代码先将哈希桶中的节点转换为树节点。前面有提到过，TreeNode实际上是继承自Node，因此这部转换其实毫无难度，就是将Node的属性值赋给TreeNode继承自Node的属性。
 		```java
-        	TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
-                return new TreeNode<>(p.hash, p.key, p.value, next);
-            }
+        TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
+        	return new TreeNode<>(p.hash, p.key, p.value, next);
+        }
         ```
 		- 判断转换后的树节点是否有pre节点：
 			- 如果没有就将其当做根节点
@@ -400,3 +401,14 @@ tags: Java基础
 
 - 从源码中可以看出，该方法并没有执行真正的构建红黑树的操作，而只是简单的将Node链表转换为TreeNode链表，然后用TreeNode的头结点调用treeify方法去构建红黑树。
 - 和treeifyBin强相关的两个方法分别是`resize`，`TreeNode#treeify`，其中`TreeNode#treeify`完成了将TreeNode链表转换为红黑树的操作，相对更重要一点，有兴趣的可以去了解一下。
+
+### 总结
+- 至此，HashMap的put方法已经逐行捋了一遍，我屏蔽了这个过程中调用的方法逻辑，这些方法相对重要，需要单独去讲，而不是作为put方法的一部分来说。另外，两个方法对于putVal()方法来说过于重要，必须在这篇里面讲清楚，否则完全无法讲好HashMap的put方法。
+	- `resize()`
+	- `TreeNode#putTreeVal()`
+		- `balanceInsertion()`
+		- `moveRootToFront()`
+	- `treeifyBin()`
+		- `TreeNode#treeify()`
+
+- HashMap的put方法中逻辑比较复杂的是`TreeNode#putTreeVal()`，这里面通过参数哈希值和参数key去寻找合适的位置将参数key和参数value，参数hash放到正确位置去，是通过对参数hash以及参数key的比较。但是某些情况下，hash值可以相等，但是key却不一定相等，不止不相等，甚至是无法进行比较。在这种情况下，JDK想方设法去比较参数Key和节点key，①判定是否实现了Comparable接口 ② 通过key的类名字进行比较。总之，按照一个逻辑最终要比较出key的一个大小还是相等，这样才能决定key是否相等，还是放到哪个位置去是合适的。
