@@ -81,26 +81,26 @@ public class MyClass {
 - 与静态方法同步类似，这种情况是对类对象加锁，同一时刻只有一个线程能够访问log2方法
 
 ### synchronized底层语义原理
-- Java虚拟机中的同步(Synchronization)基于进入和退出管程(Monitor)对象实现，无论是显式同步(有明确的 monitorenter 和 monitorexit 指令,即同步代码块)还是隐式同步(方法同步)都是如此
-- 在Java语言中，同步用的最多的地方可能是被synchronized修饰的同步方法，同步方法 并不是由 monitorenter 和 monitorexit 指令来实现同步的，而是由方法调用指令读取运行时常量池中方法的 ACC_SYNCHRONIZED 标志来隐式实现的（下面详述）
+- Java虚拟机中的同步(Synchronization)基于进入和退出管程(Monitor)对象实现，无论是显式同步(有明确的 monitor_enter 和 monitor_exit 指令,即同步代码块)还是隐式同步(方法同步)都是如此
+- 在Java语言中，同步用的最多的地方可能是被synchronized修饰的同步方法，同步方法 并不是由 monitor_enter 和 monitor_exit 指令来实现同步的，而是由方法调用指令读取运行时常量池中方法的 ACC_SYNCHRONIZED 标志来隐式实现的（下面详述）
 
 ### synchronized代码块底层原理
-- 同步语句块的实现使用的是monitorenter 和 monitorexit 指令，其中monitorenter指令指向同步代码块的开始位置，monitorexit指令则指明同步代码块的结束位置
-- 当执行monitorenter指令时，当前线程将试图获取 objectref(即对象锁) 所对应的 monitor 的持有权，当 objectref 的 monitor 的进入计数器为 0，那线程可以成功取得 monitor，并将计数器值设置为 1，取锁成功
+- 同步语句块的实现使用的是monitor_enter 和 monitor_exit 指令，其中monitor_enter指令指向同步代码块的开始位置，monitor_exit 指令则指明同步代码块的结束位置
+- 当执行monitor_enter指令时，当前线程将试图获取 objectref(即对象锁) 所对应的 monitor 的持有权，当 objectref 的 monitor 的进入计数器为 0，那线程可以成功取得 monitor，并将计数器值设置为 1，取锁成功
 - 如果当前线程已经拥有 objectref 的 monitor 的持有权，那它可以重入这个 monitor，重入时计数器的值也会加1
-- 倘若其他线程已经拥有 objectref 的 monitor 的所有权，那当前线程将被阻塞，直到正在执行线程执行完毕，即monitorexit指令被执行，执行线程将释放 monitor(锁)并设置计数器值为0 ，其他线程将有机会持有 monitor
-- 值得注意的是编译器将会确保无论方法通过何种方式完成，方法中调用过的每条 monitorenter 指令都有执行其对应 monitorexit 指令，而无论这个方法是正常结束还是异常结束
-	- 为了保证在方法异常完成时 monitorenter 和 monitorexit 指令依然可以正确配对执行，编译器会自动产生一个异常处理器，这个异常处理器声明可处理所有的异常，它的目的就是用来执行 monitorexit 指令
+- 倘若其他线程已经拥有 objectref 的 monitor 的所有权，那当前线程将被阻塞，直到正在执行线程执行完毕，即 monitor_exit 指令被执行，执行线程将释放 monitor(锁)并设置计数器值为0 ，其他线程将有机会持有 monitor
+- 值得注意的是编译器将会确保无论方法通过何种方式完成，方法中调用过的每条 monitor_enter 指令都有执行其对应 monitor_exit 指令，而无论这个方法是正常结束还是异常结束
+	- 为了保证在方法异常完成时 monitor_enter 和 monitor_exit 指令依然可以正确配对执行，编译器会自动产生一个异常处理器，这个异常处理器声明可处理所有的异常，它的目的就是用来执行 monitor_exit 指令
 
 ### synchronized方法底层原理
 - 方法级的同步是隐式，即无需通过字节码指令来控制的，它实现在方法调用和返回操作之中
 - JVM可以从方法常量池中的方法表结构(method_info Structure) 中的 ACC_SYNCHRONIZED 访问标志区分一个方法是否同步方法
 - 当方法调用时，调用指令将会检查方法的 ACC_SYNCHRONIZED 访问标志是否被设置
-	- 如果设置了，执行线程将先持有monitor（虚拟机规范中用的是管程一词）， 然后再执行方法，最后再方法完成(无论是正常完成还是非正常完成)时释放monitor
+	- 如果设置了，执行线程将先持有monitor（虚拟机规范中用的是管程一词）， 然后再执行方法，最后在方法完成(无论是正常完成还是非正常完成)时释放monitor
 - 在方法执行期间，执行线程持有了monitor，其他任何线程都无法再获得同一个monitor
 - 如果一个同步方法执行期间抛出了异常，并且在方法内部无法处理此异常，那这个同步方法所持有的monitor将在异常抛到同步方法之外时自动释放
 
-- synchronized修饰的方法并没有monitorenter指令和monitorexit指令，取得代之的确实是ACC_SYNCHRONIZED标识，该标识指明了该方法是一个同步方法，JVM通过该ACC_SYNCHRONIZED访问标志来辨别一个方法是否声明为同步方法，从而执行相应的同步调用
+- synchronized修饰的方法并没有monitor_enter指令和monitor_exit指令，取得代之的确实是ACC_SYNCHRONIZED标识，该标识指明了该方法是一个同步方法，JVM通过该ACC_SYNCHRONIZED访问标志来辨别一个方法是否声明为同步方法，从而执行相应的同步调用
 - 在Java早期版本中，synchronized属于重量级锁，效率低下，因为监视器锁（monitor）是依赖于底层的操作系统的Mutex Lock来实现的，而操作系统实现线程之间的切换时需要从用户态转换到核心态，这个状态之间的转换需要相对比较长的时间，时间成本相对较高，这也是为什么早期的synchronized效率低的原因
 - 在Java 6之后Java官方对从JVM层面对synchronized较大优化，所以现在的synchronized锁效率也优化得很不错了，Java 6之后，为了减少获得锁和释放锁所带来的性能消耗，引入了轻量级锁和偏向锁
 
@@ -118,7 +118,7 @@ public class MyClass {
 	- 在32位JVM虚拟机中，对象头由mark word，class word，一个32位长度的字节（如果该对象是一个数组），一个32位的填充（如果对齐规则需要的话）以及零个或多个实例组成的字段，数组元素或元数据字段，参见[Object header layout](https://stackoverflow.com/questions/50502663/how-to-calculate-java-arrays-memory-size)
 	- 在64位虚拟机中，对象头的组成有所不同，参见
 
-       虚拟机位数 | 头对象结构 | 说明
+       虚拟机位数 | 头对象结构 | 说明 
              - | :-: | -:
        32/64bit | Mark Word | 存储对象的hashCode、锁信息或分代年龄或GC标志等信息
        32/64bit | Class Metadata Address | 类型指针指向对象的类元数据，JVM通过这个指针确定该对象是哪个类的实例
@@ -129,7 +129,7 @@ public class MyClass {
     	- | :-: | -:
     无锁状态 | 对象HashCode | 对象分代年龄 | 0 | 01
 
-    - 由于对象头的信息是与对象自身定义的数据没有关系的额外存储成本，因此考虑到JVM的空间效率，Mark Word 被设计成为一个非固定的数据结构，以便存储更多有效的数据，它会根据对象本身的状态复用自己的存储空间。32位虚拟机如下图所示：
+    - 对象头是与对象自身的数据没有关系的额外存储成本，因此考虑到JVM的空间效率，Mark Word 被设计成为一个非固定的数据结构，以便存储更多有效的数据，它会根据对象本身的状态复用自己的存储空间。32位虚拟机如下图所示：
     ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/32_object_header_structure.png)
       64位虚拟机如下图所示:
     ![对象头结构示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/64_object_header_structure.png)
@@ -162,7 +162,7 @@ public class MyClass {
 		- 若线程调用wait()方法，将释放当前持有的monitor，owner变量恢复为null，count自减1，同时该线程进入 WaitSet集合中等待被唤醒
 		- 若当前线程执行完毕也将释放monitor(锁)并复位变量的值，以便其他线程进入获取monitor(锁)
 		![ObjectMonitor示意图](https://github.com/heshengbang/heshengbang.github.io/raw/master/images/jvm/ObjectMonitor示意图.jpg)
-	- 正是因为ObjectMonitor也即是monitor对象存在于每个Java对象的对象头中(存储的指针的指向)，synchronized锁便是通过这种方式获取锁的，也是为什么Java中任意对象可以作为锁的原因，同时也是notify/notifyAll/wait等方法存在于顶级对象Object中的原因
+	- 正是因为ObjectMonitor也即是monitor对象存在于每个Java对象的对象头中(存储的指针的指向)，synchronized锁便是通过这种方式获取锁的，这也是为什么Java中任意对象可以作为锁的原因，同时也是notify/notifyAll/wait等方法存在于顶级对象Object中的原因
 
 ### synchronized的可重入性
 - 当一个线程试图操作一个由其他线程持有的对象锁的临界资源时，将会处于阻塞状态，但当一个线程再次请求自己持有对象锁的临界资源时，这种情况属于重入锁，请求将会成功
@@ -171,7 +171,7 @@ public class MyClass {
 
 ### 线程中断与等待唤醒
 - 线程中断
-    - 当线程处于阻塞状态或者试图执行一个阻塞操作时，我们可以使用实例方法interrupt()进行线程中断，行中断操作后将会抛出interruptException异常(该异常必须捕捉无法向外抛出)并将中断状态复位
+    - 当线程处于阻塞状态或者试图执行一个阻塞操作时，我们可以使用实例方法interrupt()进行线程中断，执行中断操作后将会抛出interruptException异常(该异常必须捕捉无法向外抛出)并将中断状态复位
     - 当线程处于运行状态时，我们也可调用实例方法interrupt()进行线程中断，但同时必须手动判断中断状态，并编写中断线程的代码(其实就是结束run方法体的代码)
     - 线程的中断操作对正在等待获取的锁对象的synchronized方法或者代码块并不起作用。对于synchronized来说，如果一个线程在等待锁，那么结果只有两种，要么它获得这把锁继续执行，要么它就保存等待，即使调用中断线程的方法，也不会生效
 
